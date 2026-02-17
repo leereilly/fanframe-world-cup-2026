@@ -140,7 +140,7 @@
     ctx.font = "bold 60px 'Inter', sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(team.code, cx, badgeY + badgeHeight / 2);
+    ctx.fillText(team.code, cx, badgeY + badgeHeight / 2 - 10);
   }
 
   function getBadgeBg(colors) {
