@@ -15,13 +15,15 @@
       <h1>⚽ World Cup 2026</h1>
       <p class="subtitle">Avatar Generator</p>
       <p class="tagline">Show your colors. Rep your team.</p>
+      <p class="tagline">Update your GitHub profile, Slack, Discord, Bluesky, etc.</p>
     </header>
 
     <div class="controls">
       <div class="input-group">
         <label for="username">GitHub Username</label>
         <div class="input-row">
-          <input type="text" id="username" placeholder="e.g. octocat" autocomplete="off" spellcheck="false">
+          <span class="input-prefix">@</span>
+          <input type="text" id="username" placeholder="username" autocomplete="off" spellcheck="false">
         </div>
       </div>
 
@@ -35,13 +37,18 @@
       <button id="generate" class="btn-primary">Generate Avatar</button>
     </div>
 
+    <div id="examples-section" class="examples-section">
+      <h2>Examples</h2>
+      <div id="examples-grid" class="examples-grid"></div>
+    </div>
+
     <div id="preview-section" class="preview-section hidden">
       <canvas id="canvas" width="600" height="600"></canvas>
       <button id="download" class="btn-download">⬇ Download PNG</button>
     </div>
 
     <footer>
-      <p>Uses the <a href="https://docs.github.com/en/rest" target="_blank">GitHub API</a> to fetch avatars. No data stored.</p>
+      <p>Created with GitHub Copilot and open source.</p>
     </footer>
   </div>
 

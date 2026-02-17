@@ -86,7 +86,26 @@ header h1 {
 
 .input-row {
   display: flex;
-  gap: 0.5rem;
+  gap: 0;
+  align-items: stretch;
+}
+
+.input-prefix {
+  display: flex;
+  align-items: center;
+  padding: 0 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+  color: var(--text-muted);
+  font-size: 1rem;
+  font-family: inherit;
+  user-select: none;
+}
+
+.input-row input {
+  border-radius: 0 8px 8px 0;
 }
 
 input, select {
@@ -185,6 +204,47 @@ canvas {
   font-size: 0.85rem;
   text-align: center;
   margin-top: 0.5rem;
+}
+
+.examples-section {
+  margin-top: 2rem;
+  text-align: center;
+}
+
+.examples-section h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+}
+
+.examples-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.example-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.example-card canvas {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+}
+
+.example-label {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  max-width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .loading .btn-primary {

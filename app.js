@@ -22,6 +22,11 @@
     teamSelect.appendChild(opt);
   });
 
+  // Only allow valid GitHub username characters (alphanumeric and hyphens)
+  usernameInput.addEventListener("input", () => {
+    usernameInput.value = usernameInput.value.replace(/[^a-zA-Z0-9-]/g, "");
+  });
+
   // Handle Enter key
   usernameInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") generateBtn.click();
@@ -49,6 +54,7 @@
       const img = await loadImage(userData.avatar_url + "&s=512");
       drawAvatar(img, team);
       previewSection.classList.remove("hidden");
+      document.getElementById("examples-section").style.display = "none";
     } catch {
       showError("Could not load avatar. Check the username and try again.");
     } finally {
@@ -205,4 +211,125 @@
     const existing = document.querySelector(".error-msg");
     if (existing) existing.remove();
   }
+
+  // --- Example avatars from GitHub public events ---
+  async function loadExamples() {
+    const grid = document.getElementById("examples-grid");
+    try {
+      const res = await fetch("https://api.github.com/events");
+      if (!res.ok) return;
+      const events = await res.json();
+
+      // Extract unique usernames with avatar URLs
+      const seen = new Set();
+      const users = [];
+      for (const event of events) {
+        const login = event.actor?.login;
+        const avatar = event.actor?.avatar_url;
+        if (login && avatar && !seen.has(login)) {
+          seen.add(login);
+          users.push({ login, avatar });
+        }
+      }
+
+      for (const user of users) {
+        const team = TEAMS[Math.floor(Math.random() * TEAMS.length)];
+        try {
+          const img = await loadImage(user.avatar + "&s=200");
+          if (isDefaultAvatar(img)) continue;
+
+          const card = document.createElement("div");
+          card.className = "example-card";
+
+          const miniCanvas = document.createElement("canvas");
+          miniCanvas.width = 200;
+          miniCanvas.height = 200;
+          card.appendChild(miniCanvas);
+
+          grid.appendChild(card);
+          drawMiniAvatar(miniCanvas, img, team);
+        } catch {
+          // skip failed loads
+        }
+      }
+    } catch {
+      // silently fail — examples are non-critical
+    }
+  }
+
+  function isDefaultAvatar(img) {
+    const tmp = document.createElement("canvas");
+    tmp.width = img.width;
+    tmp.height = img.height;
+    const tc = tmp.getContext("2d");
+    tc.drawImage(img, 0, 0);
+    const data = tc.getContext ? tc : tmp.getContext("2d");
+    const pixels = data.getImageData(0, 0, tmp.width, tmp.height).data;
+    const total = pixels.length / 4;
+    let match = 0;
+    for (let i = 0; i < pixels.length; i += 4) {
+      if (pixels[i] === 240 && pixels[i + 1] === 240 && pixels[i + 2] === 240) match++;
+    }
+    return match / total >= 0.25;
+  }
+
+  function drawMiniAvatar(cvs, img, team) {
+    const size = cvs.width;
+    const ringWidth = 14;
+    const c = cvs.getContext("2d");
+    const cx = size / 2;
+    const cy = size / 2;
+    const outerR = size / 2;
+    const innerR = outerR - ringWidth;
+    const colors = team.colors;
+    const segmentAngle = (Math.PI * 2) / colors.length;
+
+    colors.forEach((color, i) => {
+      c.beginPath();
+      c.moveTo(cx, cy);
+      c.arc(cx, cy, outerR, segmentAngle * i - Math.PI / 2, segmentAngle * (i + 1) - Math.PI / 2);
+      c.closePath();
+      c.fillStyle = color;
+      c.fill();
+    });
+
+    c.save();
+    c.beginPath();
+    c.arc(cx, cy, innerR, 0, Math.PI * 2);
+    c.clip();
+    const avatarSize = innerR * 2;
+    const offset = cx - innerR;
+    c.drawImage(img, offset, offset, avatarSize, avatarSize);
+    c.restore();
+
+    // Country code badge
+    const badgeH = 44;
+    const badgePad = 12;
+    c.font = "bold 36px 'Inter', sans-serif";
+    const tw = c.measureText(team.code).width;
+    const bw = tw + badgePad * 2;
+    const bx = cx - bw / 2;
+    const by = size - badgeH - 2;
+    const br = 4;
+    c.beginPath();
+    c.moveTo(bx + br, by);
+    c.lineTo(bx + bw - br, by);
+    c.quadraticCurveTo(bx + bw, by, bx + bw, by + br);
+    c.lineTo(bx + bw, by + badgeH - br);
+    c.quadraticCurveTo(bx + bw, by + badgeH, bx + bw - br, by + badgeH);
+    c.lineTo(bx + br, by + badgeH);
+    c.quadraticCurveTo(bx, by + badgeH, bx, by + badgeH - br);
+    c.lineTo(bx, by + br);
+    c.quadraticCurveTo(bx, by, bx + br, by);
+    c.closePath();
+    const bgColor = getBadgeBg(team.colors);
+    c.fillStyle = bgColor;
+    c.fill();
+    c.fillStyle = getContrastText(bgColor);
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.fillText(team.code, cx, by + badgeH / 2);
+  }
+
+  loadExamples();
 })();
