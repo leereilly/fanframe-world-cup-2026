@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>World Cup 2026 Avatar Generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>⚽ World Cup 2026</h1>
+      <p class="subtitle">Avatar Generator</p>
+      <p class="tagline">Show your colors. Rep your team.</p>
+    </header>
+
+    <div class="controls">
+      <div class="input-group">
+        <label for="username">GitHub Username</label>
+        <div class="input-row">
+          <input type="text" id="username" placeholder="e.g. octocat" autocomplete="off" spellcheck="false">
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label for="team">Select Your Team</label>
+        <select id="team">
+          <option value="" disabled selected>Choose a team…</option>
+        </select>
+      </div>
+
+      <button id="generate" class="btn-primary">Generate Avatar</button>
+    </div>
+
+    <div id="preview-section" class="preview-section hidden">
+      <canvas id="canvas" width="600" height="600"></canvas>
+      <button id="download" class="btn-download">⬇ Download PNG</button>
+    </div>
+
+    <footer>
+      <p>Uses the <a href="https://docs.github.com/en/rest" target="_blank">GitHub API</a> to fetch avatars. No data stored.</p>
+    </footer>
+  </div>
+
+  <script src="teams.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
