@@ -108,11 +108,16 @@
   }
 
   function drawBadge(cx, cy, outerR, team) {
-    const badgeWidth = 160;
     const badgeHeight = BADGE_HEIGHT;
-    const badgeY = cy + outerR - badgeHeight - 6;
-    const badgeX = cx - badgeWidth / 2;
+    const badgePadding = 24;
     const badgeR = 8;
+
+    // Measure text to center with equal padding
+    ctx.font = "bold 60px 'Inter', sans-serif";
+    const textWidth = ctx.measureText(team.code).width;
+    const badgeWidth = textWidth + badgePadding * 2;
+    const badgeX = cx - badgeWidth / 2;
+    const badgeY = cy + outerR - badgeHeight - 6;
 
     // Badge background
     ctx.beginPath();
@@ -135,12 +140,12 @@
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Badge text
+    // Badge text — centered in badge
     ctx.fillStyle = getContrastText(bgColor);
     ctx.font = "bold 60px 'Inter', sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(team.code, cx, badgeY + badgeHeight / 2 - 10);
+    ctx.fillText(team.code, cx, badgeY + badgeHeight / 2);
   }
 
   function getBadgeBg(colors) {
