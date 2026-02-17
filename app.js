@@ -43,8 +43,10 @@
     generateBtn.textContent = "Loading…";
 
     try {
-      const avatarUrl = `https://github.com/${encodeURIComponent(username)}.png?size=512`;
-      const img = await loadImage(avatarUrl);
+      const apiRes = await fetch(`https://api.github.com/users/${encodeURIComponent(username)}`);
+      if (!apiRes.ok) throw new Error("User not found");
+      const userData = await apiRes.json();
+      const img = await loadImage(userData.avatar_url + "&s=512");
       drawAvatar(img, team);
       previewSection.classList.remove("hidden");
     } catch {
