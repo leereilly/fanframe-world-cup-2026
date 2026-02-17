@@ -18,7 +18,7 @@
   TEAMS.forEach((team) => {
     const opt = document.createElement("option");
     opt.value = team.code;
-    opt.textContent = `${team.flag} ${team.name} (${team.code})`;
+    opt.textContent = `${team.name} ${team.flag} (${team.code})`;
     teamSelect.appendChild(opt);
   });
 
@@ -119,8 +119,9 @@
     const badgeR = 8;
 
     // Measure text to center with equal padding
+    const badgeLabel = `${team.flag} ${team.code}`;
     ctx.font = "bold 60px 'Inter', sans-serif";
-    const textWidth = ctx.measureText(team.code).width;
+    const textWidth = ctx.measureText(badgeLabel).width;
     const badgeWidth = textWidth + badgePadding * 2;
     const badgeX = cx - badgeWidth / 2;
     const badgeY = cy + outerR - badgeHeight - 16;
@@ -151,10 +152,10 @@
     ctx.font = "bold 60px 'Inter', sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "alphabetic";
-    const metrics = ctx.measureText(team.code);
+    const metrics = ctx.measureText(badgeLabel);
     const textH = metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent;
     const textY = badgeY + (badgeHeight + textH) / 2 - metrics.actualBoundingBoxDescent;
-    ctx.fillText(team.code, cx, textY);
+    ctx.fillText(badgeLabel, cx, textY);
   }
 
   function getBadgeBg(colors) {
@@ -306,10 +307,11 @@
     c.restore();
 
     // Country code badge
+    const miniBadgeLabel = `${team.flag} ${team.code}`;
     const badgeH = 44;
     const badgePad = 12;
     c.font = "bold 36px 'Inter', sans-serif";
-    const tw = c.measureText(team.code).width;
+    const tw = c.measureText(miniBadgeLabel).width;
     const bw = tw + badgePad * 2;
     const bx = cx - bw / 2;
     const by = size - badgeH - 2;
@@ -331,10 +333,10 @@
     c.fillStyle = getContrastText(bgColor);
     c.textAlign = "center";
     c.textBaseline = "alphabetic";
-    const miniMetrics = c.measureText(team.code);
+    const miniMetrics = c.measureText(miniBadgeLabel);
     const miniTextH = miniMetrics.actualBoundingBoxAscent + miniMetrics.actualBoundingBoxDescent;
     const miniTextY = by + (badgeH + miniTextH) / 2 - miniMetrics.actualBoundingBoxDescent;
-    c.fillText(team.code, cx, miniTextY);
+    c.fillText(miniBadgeLabel, cx, miniTextY);
   }
 
   loadExamples();
