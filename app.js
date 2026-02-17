@@ -18,7 +18,7 @@
   TEAMS.forEach((team) => {
     const opt = document.createElement("option");
     opt.value = team.code;
-    opt.textContent = `${team.name} (${team.code})`;
+    opt.textContent = `${team.flag} ${team.name} (${team.code})`;
     teamSelect.appendChild(opt);
   });
 
@@ -123,7 +123,7 @@
     const textWidth = ctx.measureText(team.code).width;
     const badgeWidth = textWidth + badgePadding * 2;
     const badgeX = cx - badgeWidth / 2;
-    const badgeY = cy + outerR - badgeHeight - 6;
+    const badgeY = cy + outerR - badgeHeight - 16;
 
     // Badge background
     ctx.beginPath();
@@ -146,12 +146,15 @@
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // Badge text — centered in badge
+    // Badge text — precisely centered in badge
     ctx.fillStyle = getContrastText(bgColor);
     ctx.font = "bold 60px 'Inter', sans-serif";
     ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(team.code, cx, badgeY + badgeHeight / 2);
+    ctx.textBaseline = "alphabetic";
+    const metrics = ctx.measureText(team.code);
+    const textH = metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent;
+    const textY = badgeY + (badgeHeight + textH) / 2 - metrics.actualBoundingBoxDescent;
+    ctx.fillText(team.code, cx, textY);
   }
 
   function getBadgeBg(colors) {
@@ -327,8 +330,11 @@
     c.fill();
     c.fillStyle = getContrastText(bgColor);
     c.textAlign = "center";
-    c.textBaseline = "middle";
-    c.fillText(team.code, cx, by + badgeH / 2);
+    c.textBaseline = "alphabetic";
+    const miniMetrics = c.measureText(team.code);
+    const miniTextH = miniMetrics.actualBoundingBoxAscent + miniMetrics.actualBoundingBoxDescent;
+    const miniTextY = by + (badgeH + miniTextH) / 2 - miniMetrics.actualBoundingBoxDescent;
+    c.fillText(team.code, cx, miniTextY);
   }
 
   loadExamples();
