@@ -43,10 +43,7 @@
     generateBtn.textContent = "Loading…";
 
     try {
-      const res = await fetch(`https://api.github.com/users/${encodeURIComponent(username)}`);
-      if (!res.ok) throw new Error("User not found");
-      const data = await res.json();
-      const avatarUrl = data.avatar_url + "&s=512";
+      const avatarUrl = `https://github.com/${encodeURIComponent(username)}.png?size=512`;
       const img = await loadImage(avatarUrl);
       drawAvatar(img, team);
       previewSection.classList.remove("hidden");
@@ -173,13 +170,19 @@
     return luminance(bgHex) > 0.4 ? "#000000" : "#FFFFFF";
   }
 
-  function loadImage(url) {
+  async function loadImage(url) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Failed to fetch image");
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
     return new Promise((resolve, reject) => {
       const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => resolve(img);
+      img.onload = () => {
+        URL.revokeObjectURL(blobUrl);
+        resolve(img);
+      };
       img.onerror = reject;
-      img.src = url;
+      img.src = blobUrl;
     });
   }
 
