@@ -22,9 +22,9 @@
     teamSelect.appendChild(opt);
   });
 
-  // Only allow valid GitHub username characters (alphanumeric and hyphens)
+  // Allow URLs and usernames — no character restriction
   usernameInput.addEventListener("input", () => {
-    usernameInput.value = usernameInput.value.replace(/[^a-zA-Z0-9-]/g, "");
+    // No filtering — accept URLs and usernames
   });
 
   // Handle Enter key
@@ -32,31 +32,155 @@
     if (e.key === "Enter") generateBtn.click();
   });
 
+  // Detect platform from input and return avatar image URL
+  function detectAvatarSource(input) {
+    const val = input.trim();
+    if (!val) return null;
+
+    // URL-based detection
+    try {
+      const url = new URL(val);
+      const host = url.hostname.replace("www.", "");
+      const path = url.pathname.replace(/\/+$/, "");
+      const parts = path.split("/").filter(Boolean);
+      const handle = parts[0] || "";
+
+      // GitHub
+      if (host === "github.com" && handle) {
+        return { platform: "github", user: handle };
+      }
+      // X / Twitter
+      if ((host === "twitter.com" || host === "x.com") && handle) {
+        return { platform: "x", user: handle, directUrl: `https://unavatar.io/x/${handle}` };
+      }
+      // Bluesky — use public API directly
+      if (host === "bsky.app" && parts[0] === "profile" && parts[1]) {
+        return { platform: "bluesky", user: parts[1] };
+      }
+      // YouTube
+      if (host === "youtube.com" && handle) {
+        const ytUser = handle.replace(/^@/, "");
+        return { platform: "youtube", user: ytUser, directUrl: `https://unavatar.io/youtube/${ytUser}` };
+      }
+      // Gravatar
+      if (host === "gravatar.com" && handle) {
+        return { platform: "gravatar", user: handle, directUrl: `https://unavatar.io/gravatar/${handle}` };
+      }
+      // Instagram
+      if (host === "instagram.com" && handle) {
+        return { platform: "unsupported", name: "Instagram" };
+      }
+      // LinkedIn
+      if (host === "linkedin.com") {
+        return { platform: "unsupported", name: "LinkedIn" };
+      }
+      // Facebook
+      if (host === "facebook.com" && handle) {
+        return { platform: "unsupported", name: "Facebook" };
+      }
+      // Reddit
+      if (host === "reddit.com" && parts[0] === "user" && parts[1]) {
+        return { platform: "unsupported", name: "Reddit" };
+      }
+      // Telegram
+      if (host === "t.me" && handle) {
+        return { platform: "unsupported", name: "Telegram" };
+      }
+      // Mastodon
+      if (host.includes("mastodon") || host.includes("mstdn") || host.includes("fosstodon")) {
+        const mastoHandle = handle.replace(/^@/, "");
+        if (mastoHandle) {
+          return { platform: "mastodon", user: mastoHandle, mastoHost: host };
+        }
+      }
+
+      // Direct image URL (by extension or known image CDN hosts)
+      const imageHosts = ["media.licdn.com", "pbs.twimg.com", "cdn.bsky.app", "i.imgur.com", "avatars.githubusercontent.com", "gravatar.com", "i.redd.it"];
+      if (/\.(jpe?g|png|gif|webp|bmp|svg)(\?.*)?$/i.test(path) || imageHosts.some(h => host === h || host.endsWith("." + h))) {
+        return { platform: "image", directUrl: val };
+      }
+
+      // Unknown URL — try as direct image first, fall back to unavatar
+      return { platform: "unknown-url", directUrl: val };
+    } catch {
+      // Not a URL — treat as GitHub username
+      return { platform: "github", user: val };
+    }
+  }
+
+  async function fetchAvatarImage(source) {
+    if (source.platform === "unsupported") {
+      throw new Error(`${source.name} doesn't allow public avatar access. Try a GitHub, X, Bluesky, YouTube, or Mastodon URL instead. Or provide an image URL.`);
+    }
+    if (source.platform === "image") {
+      return loadImage(source.directUrl);
+    }
+    if (source.platform === "unknown-url") {
+      // Try loading as image directly; if that fails, try proxying through wsrv.nl
+      try {
+        return await loadImage(source.directUrl);
+      } catch {
+        return loadImage(`https://wsrv.nl/?url=${encodeURIComponent(source.directUrl)}&w=512&h=512`);
+      }
+    }
+    if (source.platform === "github") {
+      const apiRes = await fetch(`https://api.github.com/users/${encodeURIComponent(source.user)}`);
+      if (!apiRes.ok) throw new Error("User not found");
+      const userData = await apiRes.json();
+      return loadImage(userData.avatar_url + "&s=512");
+    }
+    if (source.platform === "bluesky") {
+      const res = await fetch(`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(source.user)}`);
+      if (!res.ok) throw new Error("Bluesky user not found");
+      const profile = await res.json();
+      if (!profile.avatar) throw new Error("No Bluesky avatar found");
+      return loadImage(profile.avatar);
+    }
+    if (source.platform === "mastodon") {
+      const res = await fetch(`https://${source.mastoHost}/api/v1/accounts/lookup?acct=${encodeURIComponent(source.user)}`);
+      if (!res.ok) throw new Error("Mastodon user not found");
+      const account = await res.json();
+      if (!account.avatar) throw new Error("No Mastodon avatar found");
+      return loadImage(account.avatar);
+    }
+    // X, YouTube, Gravatar, generic — use unavatar.io directly
+    try {
+      return await loadImage(source.directUrl);
+    } catch {
+      // Fallback: resolve via JSON API, then proxy through wsrv.nl
+      const jsonRes = await fetch(source.directUrl + "?json");
+      if (!jsonRes.ok) throw new Error("Could not resolve avatar");
+      const data = await jsonRes.json();
+      if (!data.url) throw new Error("No avatar found");
+      return loadImage(`https://wsrv.nl/?url=${encodeURIComponent(data.url)}&w=512&h=512`);
+    }
+  }
+
   generateBtn.addEventListener("click", async () => {
-    const username = usernameInput.value.trim();
+    const input = usernameInput.value.trim();
     const teamCode = teamSelect.value;
 
     clearError();
 
-    if (!username) return showError("Please enter a GitHub username.");
+    if (!input) return showError("Please enter a username or profile URL.");
     if (!teamCode) return showError("Please select a team.");
 
     const team = TEAMS.find((t) => t.code === teamCode);
     if (!team) return showError("Team not found.");
 
+    const source = detectAvatarSource(input);
+    if (!source) return showError("Could not detect a profile from the input.");
+
     generateBtn.disabled = true;
     generateBtn.textContent = "Loading…";
 
     try {
-      const apiRes = await fetch(`https://api.github.com/users/${encodeURIComponent(username)}`);
-      if (!apiRes.ok) throw new Error("User not found");
-      const userData = await apiRes.json();
-      const img = await loadImage(userData.avatar_url + "&s=512");
+      const img = await fetchAvatarImage(source);
       drawAvatar(img, team);
       previewSection.classList.remove("hidden");
       document.getElementById("examples-section").style.display = "none";
-    } catch {
-      showError("Could not load avatar. Check the username and try again.");
+    } catch (err) {
+      showError(err.message || "Could not load avatar. Check the username/URL and try again.");
     } finally {
       generateBtn.disabled = false;
       generateBtn.textContent = "Generate Avatar";
@@ -188,18 +312,12 @@
   }
 
   async function loadImage(url) {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error("Failed to fetch image");
-    const blob = await res.blob();
-    const blobUrl = URL.createObjectURL(blob);
     return new Promise((resolve, reject) => {
       const img = new Image();
-      img.onload = () => {
-        URL.revokeObjectURL(blobUrl);
-        resolve(img);
-      };
+      img.crossOrigin = "anonymous";
+      img.onload = () => resolve(img);
       img.onerror = reject;
-      img.src = blobUrl;
+      img.src = url;
     });
   }
 
