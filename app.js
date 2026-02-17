@@ -3,7 +3,7 @@
 
   const SIZE = 600;
   const RING_WIDTH = 40;
-  const BADGE_HEIGHT = 36;
+  const BADGE_HEIGHT = 72;
   const AVATAR_PADDING = 8;
 
   const teamSelect = document.getElementById("team");
@@ -108,7 +108,7 @@
   }
 
   function drawBadge(cx, cy, outerR, team) {
-    const badgeWidth = 72;
+    const badgeWidth = 160;
     const badgeHeight = BADGE_HEIGHT;
     const badgeY = cy + outerR - badgeHeight - 6;
     const badgeX = cx - badgeWidth / 2;
@@ -137,7 +137,7 @@
 
     // Badge text
     ctx.fillStyle = getContrastText(bgColor);
-    ctx.font = "bold 20px 'Inter', sans-serif";
+    ctx.font = "bold 60px 'Inter', sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(team.code, cx, badgeY + badgeHeight / 2);
