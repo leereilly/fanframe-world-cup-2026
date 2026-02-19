@@ -270,15 +270,6 @@
     const ribbonY = textY - fontSize / 2 - padding;
     const ribbonH = size - ribbonY;
 
-    // Shadow above ribbon
-    c.save();
-    c.shadowColor = "rgba(0,0,0,0.45)";
-    c.shadowBlur = Math.max(8 * scale, 3);
-    c.shadowOffsetY = Math.max(-2 * scale, -1);
-    c.fillStyle = colors[0];
-    c.fillRect(0, ribbonY, size, ribbonH);
-    c.restore();
-
     // Filter out white from gradient for teams with 3+ colors
     let gradColors = colors;
     if (colors.length > 2) {
@@ -286,55 +277,48 @@
       if (filtered.length >= 2) gradColors = filtered;
     }
 
-    // Gradient ribbon background using team colors
-    const grad = c.createLinearGradient(0, ribbonY, size, ribbonY);
-    if (gradColors.length === 1) {
-      grad.addColorStop(0, gradColors[0]);
-      grad.addColorStop(1, gradColors[0]);
-    } else {
-      gradColors.forEach((color, i) => {
-        grad.addColorStop(i / (gradColors.length - 1), color);
-      });
-    }
-    c.fillStyle = grad;
-    c.fillRect(0, ribbonY, size, ribbonH);
-
-    // Top border line
-    c.strokeStyle = "rgba(255,255,255,0.6)";
-    c.lineWidth = Math.max(2 * scale, 1);
-    c.beginPath();
-    c.moveTo(0, ribbonY);
-    c.lineTo(size, ribbonY);
-    c.stroke();
-
-    // Determine contrast-appropriate text color from average ribbon luminance
-    const avgLum = gradColors.reduce((sum, col) => sum + luminance(col), 0) / gradColors.length;
-    const textColor = avgLum > 0.4 ? "#000000" : "#FFFFFF";
-    const outlineColor = avgLum > 0.4 ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.6)";
-
-    // Country code text — Tiny5, 2× size
+    // Country code text — Tiny5
     c.font = `${fontSize}px 'Tiny5', monospace`;
     c.textAlign = "center";
     c.textBaseline = "middle";
     c.letterSpacing = Math.max(Math.round(4 * scale), 1) + "px";
 
-    // Text shadow
+    // White drop shadow — soft glow behind text
     c.save();
-    c.shadowColor = avgLum > 0.4 ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.7)";
-    c.shadowBlur = Math.max(4 * scale, 2);
-    c.shadowOffsetY = Math.max(2 * scale, 1);
-    c.fillStyle = textColor;
-    c.fillText(team.code, cx, textY);
+    c.shadowColor = "rgba(255,255,255,0.8)";
+    c.shadowBlur = 20;
+    c.fillStyle = "rgba(255,255,255,0.6)";
+    for (let i = 0; i < 5; i++) {
+      c.fillText(team.code, cx, textY);
+    }
     c.restore();
 
-    // Stroke outline for contrast on gradient
-    c.strokeStyle = outlineColor;
-    c.lineWidth = Math.max(4 * scale, 1.5);
-    c.strokeText(team.code, cx, textY);
+    // Black text layer — 2px up and 2px right
+    c.fillStyle = "#000000";
+    c.fillText(team.code, cx + 2, textY - 2);
 
-    // Fill on top
-    c.fillStyle = textColor;
-    c.fillText(team.code, cx, textY);
+    // Black text layer — 2px down and 2px left
+    c.fillStyle = "#000000";
+    c.fillText(team.code, cx - 2, textY + 2);
+
+    // Country color text layer — centered on top
+    // If 3 colors, assign one per letter; otherwise use the main color
+    if (colors.length >= 3 && team.code.length === 3) {
+      const letters = team.code.split("");
+      const totalWidth = c.measureText(team.code).width;
+      let curX = cx - totalWidth / 2;
+      c.textAlign = "left";
+      letters.forEach((letter, i) => {
+        c.fillStyle = lightenIfDark(colors[i]);
+        const lw = c.measureText(letter).width;
+        c.fillText(letter, curX, textY);
+        curX += lw;
+      });
+      c.textAlign = "center";
+    } else {
+      c.fillStyle = lightenIfDark(colors[0]);
+      c.fillText(team.code, cx, textY);
+    }
     c.letterSpacing = "0px";
   }
 
@@ -361,6 +345,19 @@
     const g = parseInt(hex.slice(3, 5), 16) / 255;
     const b = parseInt(hex.slice(5, 7), 16) / 255;
     return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  }
+
+  function lightenIfDark(hex) {
+    let r = parseInt(hex.slice(1, 3), 16);
+    let g = parseInt(hex.slice(3, 5), 16);
+    let b = parseInt(hex.slice(5, 7), 16);
+    if (luminance(hex) < 0.25) {
+      const amt = 60;
+      r = Math.min(255, r + amt);
+      g = Math.min(255, g + amt);
+      b = Math.min(255, b + amt);
+    }
+    return `#${r.toString(16).padStart(2,"0")}${g.toString(16).padStart(2,"0")}${b.toString(16).padStart(2,"0")}`;
   }
 
   function getContrastText(bgHex) {
