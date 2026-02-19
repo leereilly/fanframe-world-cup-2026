@@ -173,9 +173,10 @@ select option {
 canvas {
   width: 300px;
   height: 300px;
+}
+
+.example-card canvas {
   border-radius: 50%;
-  background: var(--surface);
-  border: 2px solid var(--border);
 }
 
 .btn-download {
