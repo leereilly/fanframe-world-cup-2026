@@ -235,21 +235,12 @@
     // --- Color ring (segmented for multi-color flags) ---
     drawColorRing(ctx, cx, cy, outerR, ringInnerR, colors);
 
-    // --- Inner shadow (dark inset between ring and avatar) ---
-    ctx.save();
+    // --- Inner white border between ring and avatar ---
     ctx.beginPath();
     ctx.arc(cx, cy, ringInnerR, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.beginPath();
-    ctx.arc(cx, cy, ringInnerR + 10, 0, Math.PI * 2);
-    ctx.shadowColor = "rgba(0,0,0,0.5)";
-    ctx.shadowBlur = INNER_SHADOW_WIDTH;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 2;
-    ctx.strokeStyle = "rgba(0,0,0,0.3)";
-    ctx.lineWidth = 10;
+    ctx.strokeStyle = "#FFFFFF";
+    ctx.lineWidth = 3;
     ctx.stroke();
-    ctx.restore();
 
     // --- Avatar image (circular clip) ---
     ctx.save();
@@ -261,8 +252,13 @@
     ctx.drawImage(img, avatarOffset, avatarOffset, avatarSize, avatarSize);
     ctx.restore();
 
-    // --- Badge at bottom ---
+    // --- Badge at bottom (clipped to circle) ---
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, outerR, 0, Math.PI * 2);
+    ctx.clip();
     drawBadge(ctx, cx, cy, outerR, team, SIZE);
+    ctx.restore();
   }
 
   function drawColorRing(c, cx, cy, outerR, innerR, colors) {
@@ -306,16 +302,14 @@
   }
 
   function drawBadge(c, cx, cy, outerR, team, size) {
-    const badgeLabel = `${team.flag} ${team.code}`;
+    const badgeLabel = team.code;
     const fontSize = Math.round(size * 0.085);
     c.font = `800 ${fontSize}px 'Inter', -apple-system, sans-serif`;
 
-    const textWidth = c.measureText(badgeLabel).width;
-    const padX = fontSize * 0.55;
-    const badgeW = textWidth + padX * 2;
+    const badgeW = size - OUTER_MARGIN * 2;
     const badgeH = BADGE_HEIGHT;
-    const badgeX = cx - badgeW / 2;
-    const badgeY = cy + outerR - badgeH * 0.55;
+    const badgeX = OUTER_MARGIN;
+    const badgeY = cy + outerR - badgeH * 0.55 - 80;
 
     // Badge shadow
     c.save();
@@ -323,7 +317,7 @@
     c.shadowBlur = 8;
     c.shadowOffsetY = 3;
 
-    // Pill-shaped badge background
+    // Full-width banner background
     drawPill(c, badgeX, badgeY, badgeW, badgeH, BADGE_RADIUS);
     const bgColor = getBadgeBg(team.colors);
     c.fillStyle = bgColor;
@@ -332,7 +326,7 @@
 
     // Badge border
     drawPill(c, badgeX, badgeY, badgeW, badgeH, BADGE_RADIUS);
-    c.strokeStyle = "rgba(255,255,255,0.25)";
+    c.strokeStyle = "#000000";
     c.lineWidth = 2;
     c.stroke();
 
@@ -521,18 +515,23 @@
     c.drawImage(img, offset, offset, avatarSize, avatarSize);
     c.restore();
 
-    // Badge
-    const badgeLabel = `${team.flag} ${team.code}`;
+    // Badge (clipped to circle)
+    c.save();
+    c.beginPath();
+    c.arc(cx, cy, outerR, 0, Math.PI * 2);
+    c.clip();
+
+    const badgeLabel = team.code;
     const fontSize = Math.max(Math.round(size * 0.15), 12);
     const badgeH = Math.max(Math.round(BADGE_HEIGHT * scale), 20);
     const badgePillR = badgeH / 2;
 
+    const badgeMargin = Math.round(OUTER_MARGIN * scale);
+    const bw = size - badgeMargin * 2;
+    const bx = badgeMargin;
+    const by = cy + outerR - badgeH * 0.55 - (80 * scale);
+
     c.font = `800 ${fontSize}px 'Inter', -apple-system, sans-serif`;
-    const tw = c.measureText(badgeLabel).width;
-    const padX = fontSize * 0.4;
-    const bw = tw + padX * 2;
-    const bx = cx - bw / 2;
-    const by = cy + outerR - badgeH * 0.55;
 
     c.save();
     c.shadowColor = "rgba(0,0,0,0.3)";
@@ -545,7 +544,7 @@
     c.restore();
 
     drawPill(c, bx, by, bw, badgeH, badgePillR);
-    c.strokeStyle = "rgba(255,255,255,0.25)";
+    c.strokeStyle = "#000000";
     c.lineWidth = 1;
     c.stroke();
 
@@ -557,6 +556,7 @@
     const miniTextH = miniMetrics.actualBoundingBoxAscent + miniMetrics.actualBoundingBoxDescent;
     const miniTextY = by + (badgeH + miniTextH) / 2 - miniMetrics.actualBoundingBoxDescent;
     c.fillText(badgeLabel, cx, miniTextY);
+    c.restore();
   }
 
   loadExamples();

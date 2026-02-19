@@ -5,31 +5,67 @@
 }
 
 :root {
-  --bg: #0d1117;
-  --surface: #161b22;
-  --border: #30363d;
-  --text: #e6edf3;
-  --text-muted: #8b949e;
-  --accent: #58a6ff;
-  --accent-hover: #79c0ff;
-  --green: #3fb950;
+  --bg: #2d7a3a;
+  --bg-dark: #256b30;
+  --surface: rgba(0, 0, 0, 0.45);
+  --border: rgba(255, 255, 255, 0.25);
+  --text: #ffffff;
+  --text-muted: rgba(255, 255, 255, 0.7);
+  --accent: #ffffff;
+  --accent-hover: #e0e0e0;
+  --green: #1b5e20;
   --radius: 12px;
+  --line-color: rgba(255, 255, 255, 0.35);
 }
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  background: var(--bg);
+  background: repeating-linear-gradient(
+    180deg,
+    var(--bg) 0px,
+    var(--bg) 40px,
+    var(--bg-dark) 40px,
+    var(--bg-dark) 80px
+  );
   color: var(--text);
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 2rem 1rem;
+  position: relative;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  display: block;
+  width: 100%;
+  height: 100%;
+  background:
+    /* center circle */
+    radial-gradient(circle at 50% 50%, transparent 119px, var(--line-color) 119px, var(--line-color) 122px, transparent 122px),
+    /* center line */
+    linear-gradient(0deg, transparent calc(50% - 1.5px), var(--line-color) calc(50% - 1.5px), var(--line-color) calc(50% + 1.5px), transparent calc(50% + 1.5px)),
+    /* center dot */
+    radial-gradient(circle at 50% 50%, var(--line-color) 5px, transparent 5px),
+    /* border lines */
+    linear-gradient(0deg, var(--line-color) 3px, transparent 3px),
+    linear-gradient(180deg, var(--line-color) 3px, transparent 3px),
+    linear-gradient(90deg, var(--line-color) 3px, transparent 3px),
+    linear-gradient(270deg, var(--line-color) 3px, transparent 3px);
+  z-index: 0;
 }
 
 .container {
   max-width: 480px;
   width: 100%;
+  position: relative;
+  z-index: 1;
+  margin: 0 auto;
 }
 
 header {
@@ -41,10 +77,8 @@ header h1 {
   font-size: 2rem;
   font-weight: 900;
   letter-spacing: -0.02em;
-  background: linear-gradient(135deg, var(--accent), var(--green));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #ffffff;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
 .subtitle {
@@ -62,6 +96,8 @@ header h1 {
 
 .controls {
   background: var(--surface);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 1.5rem;
@@ -94,7 +130,7 @@ header h1 {
   display: flex;
   align-items: center;
   padding: 0 0.75rem;
-  background: var(--surface);
+  background: rgba(0, 0, 0, 0.3);
   border: 1px solid var(--border);
   border-right: none;
   border-radius: 8px 0 0 8px;
@@ -111,7 +147,7 @@ header h1 {
 input, select {
   width: 100%;
   padding: 0.75rem 1rem;
-  background: var(--bg);
+  background: rgba(0, 0, 0, 0.3);
   border: 1px solid var(--border);
   border-radius: 8px;
   color: var(--text);
@@ -126,15 +162,15 @@ input:focus, select:focus {
 }
 
 select option {
-  background: var(--surface);
+  background: #1b5e20;
   color: var(--text);
 }
 
 .btn-primary {
   width: 100%;
   padding: 0.85rem;
-  background: var(--accent);
-  color: #fff;
+  background: #ffd600;
+  color: #1b5e20;
   font-size: 1rem;
   font-weight: 700;
   font-family: inherit;
@@ -145,7 +181,7 @@ select option {
 }
 
 .btn-primary:hover {
-  background: var(--accent-hover);
+  background: #ffea00;
 }
 
 .btn-primary:active {
@@ -181,8 +217,8 @@ canvas {
 
 .btn-download {
   padding: 0.75rem 2rem;
-  background: var(--green);
-  color: #fff;
+  background: #ffd600;
+  color: #1b5e20;
   font-size: 0.95rem;
   font-weight: 700;
   font-family: inherit;
@@ -261,7 +297,7 @@ footer {
 }
 
 footer a {
-  color: var(--accent);
+  color: #ffd600;
   text-decoration: none;
 }
 
