@@ -1,13 +1,14 @@
-(function () {
+(async function () {
   "use strict";
+
+  // Wait for Tiny5 font to load before any canvas drawing
+  await document.fonts.load("16px 'Tiny5'");
 
   const SIZE = 600;
   const OUTER_MARGIN = 12;        // safe margin so glow isn't cropped
-  const RING_WIDTH = 36;          // thick color ring
+  const RING_WIDTH = 18;          // slim color ring
   const WHITE_STROKE = 4;         // thin white outer stroke
   const INNER_SHADOW_WIDTH = 6;   // subtle shadow between ring and avatar
-  const BADGE_HEIGHT = 64;
-  const BADGE_RADIUS = BADGE_HEIGHT / 2; // full pill shape
 
   const teamSelect = document.getElementById("team");
   const usernameInput = document.getElementById("username");
@@ -206,59 +207,15 @@
   function drawAvatar(img, team) {
     const cx = SIZE / 2;
     const cy = SIZE / 2;
-    const colors = team.colors;
-
-    // Radii
-    const outerR = SIZE / 2 - OUTER_MARGIN;
-    const ringInnerR = outerR - RING_WIDTH;
-    const avatarR = ringInnerR - 2; // tiny gap for shadow
+    const avatarR = SIZE / 2;
 
     ctx.clearRect(0, 0, SIZE, SIZE);
 
-    // --- Outer glow ---
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(cx, cy, outerR + 6, 0, Math.PI * 2);
-    ctx.shadowColor = colors[0];
-    ctx.shadowBlur = 24;
-    ctx.fillStyle = "rgba(0,0,0,0)";
-    ctx.fill();
-    ctx.restore();
+    // --- Avatar image (square, full bleed) ---
+    ctx.drawImage(img, 0, 0, SIZE, SIZE);
 
-    // --- White outer stroke ---
-    ctx.beginPath();
-    ctx.arc(cx, cy, outerR + WHITE_STROKE / 2, 0, Math.PI * 2);
-    ctx.strokeStyle = "#FFFFFF";
-    ctx.lineWidth = WHITE_STROKE;
-    ctx.stroke();
-
-    // --- Color ring (segmented for multi-color flags) ---
-    drawColorRing(ctx, cx, cy, outerR, ringInnerR, colors);
-
-    // --- Inner white border between ring and avatar ---
-    ctx.beginPath();
-    ctx.arc(cx, cy, ringInnerR, 0, Math.PI * 2);
-    ctx.strokeStyle = "#FFFFFF";
-    ctx.lineWidth = 3;
-    ctx.stroke();
-
-    // --- Avatar image (circular clip) ---
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(cx, cy, avatarR, 0, Math.PI * 2);
-    ctx.clip();
-    const avatarSize = avatarR * 2;
-    const avatarOffset = cx - avatarR;
-    ctx.drawImage(img, avatarOffset, avatarOffset, avatarSize, avatarSize);
-    ctx.restore();
-
-    // --- Badge at bottom (clipped to circle) ---
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(cx, cy, outerR, 0, Math.PI * 2);
-    ctx.clip();
-    drawBadge(ctx, cx, cy, outerR, team, SIZE);
-    ctx.restore();
+    // --- Ribbon banner at bottom ---
+    drawRibbon(ctx, cx, cy, avatarR, team, SIZE);
   }
 
   function drawColorRing(c, cx, cy, outerR, innerR, colors) {
@@ -301,61 +258,84 @@
     }
   }
 
-  function drawBadge(c, cx, cy, outerR, team, size) {
-    const badgeLabel = team.code;
-    const fontSize = Math.round(size * 0.085);
-    c.font = `800 ${fontSize}px 'Inter', -apple-system, sans-serif`;
+  function drawRibbon(c, cx, cy, outerR, team, size) {
+    const scale = size / SIZE;
+    const colors = team.colors;
 
-    const badgeW = size - OUTER_MARGIN * 2;
-    const badgeH = BADGE_HEIGHT;
-    const badgeX = OUTER_MARGIN;
-    const badgeY = cy + outerR - badgeH * 0.55 - 80;
+    // Compute text position first, then size ribbon to cover it
+    const baseRibbonH = size * 0.28;
+    const fontSize = Math.max(Math.round(baseRibbonH * 1.0), 10);
+    const textY = size - baseRibbonH + baseRibbonH * 0.55 - 20;
+    const padding = Math.max(16 * scale, 4);
+    const ribbonY = textY - fontSize / 2 - padding;
+    const ribbonH = size - ribbonY;
 
-    // Badge shadow
+    // Shadow above ribbon
     c.save();
-    c.shadowColor = "rgba(0,0,0,0.35)";
-    c.shadowBlur = 8;
-    c.shadowOffsetY = 3;
-
-    // Full-width banner background
-    drawPill(c, badgeX, badgeY, badgeW, badgeH, BADGE_RADIUS);
-    const bgColor = getBadgeBg(team.colors);
-    c.fillStyle = bgColor;
-    c.fill();
+    c.shadowColor = "rgba(0,0,0,0.45)";
+    c.shadowBlur = Math.max(8 * scale, 3);
+    c.shadowOffsetY = Math.max(-2 * scale, -1);
+    c.fillStyle = colors[0];
+    c.fillRect(0, ribbonY, size, ribbonH);
     c.restore();
 
-    // Badge border
-    drawPill(c, badgeX, badgeY, badgeW, badgeH, BADGE_RADIUS);
-    c.strokeStyle = "#000000";
-    c.lineWidth = 2;
+    // Filter out white from gradient for teams with 3+ colors
+    let gradColors = colors;
+    if (colors.length > 2) {
+      const filtered = colors.filter(c => c.toUpperCase() !== "#FFFFFF" && c.toUpperCase() !== "#FFF");
+      if (filtered.length >= 2) gradColors = filtered;
+    }
+
+    // Gradient ribbon background using team colors
+    const grad = c.createLinearGradient(0, ribbonY, size, ribbonY);
+    if (gradColors.length === 1) {
+      grad.addColorStop(0, gradColors[0]);
+      grad.addColorStop(1, gradColors[0]);
+    } else {
+      gradColors.forEach((color, i) => {
+        grad.addColorStop(i / (gradColors.length - 1), color);
+      });
+    }
+    c.fillStyle = grad;
+    c.fillRect(0, ribbonY, size, ribbonH);
+
+    // Top border line
+    c.strokeStyle = "rgba(255,255,255,0.6)";
+    c.lineWidth = Math.max(2 * scale, 1);
+    c.beginPath();
+    c.moveTo(0, ribbonY);
+    c.lineTo(size, ribbonY);
     c.stroke();
 
-    // Badge text — precisely centered
-    c.fillStyle = getContrastText(bgColor);
-    c.font = `800 ${fontSize}px 'Inter', -apple-system, sans-serif`;
-    c.textAlign = "center";
-    c.textBaseline = "alphabetic";
-    c.letterSpacing = "2px";
-    const metrics = c.measureText(badgeLabel);
-    const textH = metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent;
-    const textY = badgeY + (badgeH + textH) / 2 - metrics.actualBoundingBoxDescent;
-    c.fillText(badgeLabel, cx, textY);
-    c.letterSpacing = "0px";
-  }
+    // Determine contrast-appropriate text color from average ribbon luminance
+    const avgLum = gradColors.reduce((sum, col) => sum + luminance(col), 0) / gradColors.length;
+    const textColor = avgLum > 0.4 ? "#000000" : "#FFFFFF";
+    const outlineColor = avgLum > 0.4 ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.6)";
 
-  function drawPill(c, x, y, w, h, r) {
-    r = Math.min(r, h / 2, w / 2);
-    c.beginPath();
-    c.moveTo(x + r, y);
-    c.lineTo(x + w - r, y);
-    c.arcTo(x + w, y, x + w, y + r, r);
-    c.lineTo(x + w, y + h - r);
-    c.arcTo(x + w, y + h, x + w - r, y + h, r);
-    c.lineTo(x + r, y + h);
-    c.arcTo(x, y + h, x, y + h - r, r);
-    c.lineTo(x, y + r);
-    c.arcTo(x, y, x + r, y, r);
-    c.closePath();
+    // Country code text — Tiny5, 2× size
+    c.font = `${fontSize}px 'Tiny5', monospace`;
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.letterSpacing = Math.max(Math.round(4 * scale), 1) + "px";
+
+    // Text shadow
+    c.save();
+    c.shadowColor = avgLum > 0.4 ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.7)";
+    c.shadowBlur = Math.max(4 * scale, 2);
+    c.shadowOffsetY = Math.max(2 * scale, 1);
+    c.fillStyle = textColor;
+    c.fillText(team.code, cx, textY);
+    c.restore();
+
+    // Stroke outline for contrast on gradient
+    c.strokeStyle = outlineColor;
+    c.lineWidth = Math.max(4 * scale, 1.5);
+    c.strokeText(team.code, cx, textY);
+
+    // Fill on top
+    c.fillStyle = textColor;
+    c.fillText(team.code, cx, textY);
+    c.letterSpacing = "0px";
   }
 
   function getBadgeBg(colors) {
@@ -476,87 +456,14 @@
     const c = cvs.getContext("2d");
     const cx = size / 2;
     const cy = size / 2;
-    const scale = size / SIZE;
-    const margin = Math.round(OUTER_MARGIN * scale);
-    const ringW = Math.max(Math.round(RING_WIDTH * scale), 6);
-    const outerR = size / 2 - margin;
-    const innerR = outerR - ringW;
-    const avatarR = innerR - 1;
 
     c.clearRect(0, 0, size, size);
 
-    // Outer glow
-    c.save();
-    c.beginPath();
-    c.arc(cx, cy, outerR + 3, 0, Math.PI * 2);
-    c.shadowColor = team.colors[0];
-    c.shadowBlur = 10 * scale;
-    c.fillStyle = "rgba(0,0,0,0)";
-    c.fill();
-    c.restore();
+    // Avatar (square, full bleed)
+    c.drawImage(img, 0, 0, size, size);
 
-    // White outer stroke
-    c.beginPath();
-    c.arc(cx, cy, outerR + 1, 0, Math.PI * 2);
-    c.strokeStyle = "#FFFFFF";
-    c.lineWidth = Math.max(2, WHITE_STROKE * scale);
-    c.stroke();
-
-    // Color ring
-    drawColorRing(c, cx, cy, outerR, innerR, team.colors);
-
-    // Avatar
-    c.save();
-    c.beginPath();
-    c.arc(cx, cy, avatarR, 0, Math.PI * 2);
-    c.clip();
-    const avatarSize = avatarR * 2;
-    const offset = cx - avatarR;
-    c.drawImage(img, offset, offset, avatarSize, avatarSize);
-    c.restore();
-
-    // Badge (clipped to circle)
-    c.save();
-    c.beginPath();
-    c.arc(cx, cy, outerR, 0, Math.PI * 2);
-    c.clip();
-
-    const badgeLabel = team.code;
-    const fontSize = Math.max(Math.round(size * 0.15), 12);
-    const badgeH = Math.max(Math.round(BADGE_HEIGHT * scale), 20);
-    const badgePillR = badgeH / 2;
-
-    const badgeMargin = Math.round(OUTER_MARGIN * scale);
-    const bw = size - badgeMargin * 2;
-    const bx = badgeMargin;
-    const by = cy + outerR - badgeH * 0.55 - (80 * scale);
-
-    c.font = `800 ${fontSize}px 'Inter', -apple-system, sans-serif`;
-
-    c.save();
-    c.shadowColor = "rgba(0,0,0,0.3)";
-    c.shadowBlur = 4;
-    c.shadowOffsetY = 2;
-    drawPill(c, bx, by, bw, badgeH, badgePillR);
-    const bgColor = getBadgeBg(team.colors);
-    c.fillStyle = bgColor;
-    c.fill();
-    c.restore();
-
-    drawPill(c, bx, by, bw, badgeH, badgePillR);
-    c.strokeStyle = "#000000";
-    c.lineWidth = 1;
-    c.stroke();
-
-    c.fillStyle = getContrastText(bgColor);
-    c.font = `800 ${fontSize}px 'Inter', -apple-system, sans-serif`;
-    c.textAlign = "center";
-    c.textBaseline = "alphabetic";
-    const miniMetrics = c.measureText(badgeLabel);
-    const miniTextH = miniMetrics.actualBoundingBoxAscent + miniMetrics.actualBoundingBoxDescent;
-    const miniTextY = by + (badgeH + miniTextH) / 2 - miniMetrics.actualBoundingBoxDescent;
-    c.fillText(badgeLabel, cx, miniTextY);
-    c.restore();
+    // Ribbon banner at bottom
+    drawRibbon(c, cx, cy, size / 2, team, size);
   }
 
   loadExamples();
