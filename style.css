@@ -289,6 +289,37 @@ canvas {
   opacity: 0.6;
 }
 
+.how-it-works {
+  margin-top: 2.5rem;
+  text-align: center;
+}
+
+.how-it-works h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.how-it-works ol {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.how-it-works li::before {
+  font-weight: 700;
+  color: #ffd600;
+  margin-right: 0.5rem;
+}
+
+.how-it-works li:nth-child(1)::before { content: "1."; }
+.how-it-works li:nth-child(2)::before { content: "2."; }
+.how-it-works li:nth-child(3)::before { content: "3."; }
+
 footer {
   margin-top: 2.5rem;
   text-align: center;
