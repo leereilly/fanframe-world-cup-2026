@@ -560,4 +560,19 @@
   }
 
   loadExamples();
+
+  // Render PR promo avatars with flag rings
+  document.querySelectorAll(".pr-promo .pr-avatar[data-user]").forEach(async (cvs) => {
+    const user = cvs.dataset.user;
+    const teamCode = cvs.dataset.team;
+    const team = TEAMS.find(t => t.code === teamCode);
+    if (!team) return;
+    try {
+      const res = await fetch(`https://api.github.com/users/${user}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const img = await loadImage(data.avatar_url + "&s=200");
+      drawMiniAvatar(cvs, img, team);
+    } catch { /* skip */ }
+  });
 })();
