@@ -19,7 +19,7 @@
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
   background: repeating-linear-gradient(
     180deg,
     var(--bg) 0px,
@@ -75,7 +75,7 @@ header {
 
 header h1 {
   font-size: 2rem;
-  font-weight: 900;
+  font-weight: 700;
   letter-spacing: -0.02em;
   color: #ffffff;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
@@ -92,6 +92,15 @@ header h1 {
   color: var(--text-muted);
   font-size: 0.875rem;
   margin-top: 0.5rem;
+}
+
+.header-example {
+  display: block;
+  width: 120px;
+  height: 120px;
+  margin: 1.5rem auto 0;
+  border-radius: 50%;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
 }
 
 .controls {
@@ -392,6 +401,7 @@ canvas {
   list-style: none;
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 0.5rem;
   color: var(--text-muted);
   font-size: 0.85rem;
@@ -407,23 +417,48 @@ canvas {
 .how-it-works li:nth-child(2)::before { content: "2."; }
 .how-it-works li:nth-child(3)::before { content: "3."; }
 
-footer {
+#footer {
   margin-top: 2.5rem;
-  text-align: center;
-  color: var(--text-muted);
-  font-size: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  color: var(--text);
+  font-size: 0.8rem;
 }
 
-footer a {
-  color: #ffd600;
+#footer svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+#footer .heart {
+  color: #ff4d6d;
+}
+
+#footer a {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text);
   text-decoration: none;
 }
 
-footer a:hover {
+#footer a:hover {
   text-decoration: underline;
 }
 
 /* Page layout — main content centered, promo on the right */
+.page-wrapper {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 900px;
+  position: relative;
+  z-index: 1;
+}
+
 .page-layout {
   display: flex;
   align-items: flex-start;
