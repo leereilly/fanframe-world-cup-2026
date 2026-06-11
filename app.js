@@ -580,14 +580,24 @@
 
   function showError(msg) {
     clearError();
-    const el = document.createElement("p");
+    const el = document.createElement("div");
     el.className = "error-msg";
-    el.innerHTML =
-      '<svg class="whistle-icon" viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true">' +
-      '<path d="M13 4h2v4h-2z"/>' +
-      '<path fill-rule="evenodd" clip-rule="evenodd" d="M7 8h14a1.5 1.5 0 0 1 1.5 1.5V10a1 1 0 0 1-1 1H14l-1.2 3.2A5.5 5.5 0 1 1 7 8zm.5 2.5a2 2 0 1 0 .001 0z"/>' +
-      "</svg>";
-    el.appendChild(document.createTextNode(`VAR check complete: ${msg}`));
+    el.setAttribute("role", "alert");
+
+    const heading = document.createElement("p");
+    heading.className = "var-heading";
+    heading.textContent = "VAR CHECK COMPLETE";
+
+    const decision = document.createElement("p");
+    decision.className = "var-decision";
+    const label = document.createElement("span");
+    label.className = "var-decision-label";
+    label.textContent = "DECISION: ";
+    decision.appendChild(label);
+    decision.appendChild(document.createTextNode(msg));
+
+    el.appendChild(heading);
+    el.appendChild(decision);
     document.querySelector(".controls").appendChild(el);
     blowWhistle();
   }
