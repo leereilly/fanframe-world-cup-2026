@@ -16,9 +16,16 @@
   const fileInput = document.getElementById("file-input");
   const dropZone = document.getElementById("drop-zone");
   const uploadLink = document.getElementById("upload-link");
+  const squareOpt = document.getElementById("opt-square");
+  const textOpt = document.getElementById("opt-text");
+  const colorsOpt = document.getElementById("opt-colors");
 
   // Holds a locally uploaded/dropped image; takes precedence over the text input.
   let uploadedImage = null;
+
+  // Remember the last rendered avatar so option toggles can re-render instantly.
+  let lastImg = null;
+  let lastTeam = null;
 
   // Populate team dropdown
   TEAMS.forEach((team) => {
@@ -291,13 +298,31 @@
     });
   });
 
-  function drawAvatar(img, team) {
-    renderAvatar(ctx, img, team, SIZE);
+  function readOptions() {
+    return {
+      square: squareOpt.checked,
+      showText: textOpt.checked,
+      showColors: colorsOpt.checked,
+    };
   }
+
+  function drawAvatar(img, team) {
+    lastImg = img;
+    lastTeam = team;
+    renderAvatar(ctx, img, team, SIZE, readOptions());
+  }
+
+  // Re-render live when options change (only after an avatar has been generated).
+  [squareOpt, textOpt, colorsOpt].forEach((el) => {
+    el.addEventListener("change", () => {
+      if (lastImg && lastTeam) drawAvatar(lastImg, lastTeam);
+    });
+  });
 
   // Unified renderer: circular avatar + LinkedIn #OPENTOWORK-style color band + styled code.
   // The band hugs the lower-left perimeter and fades to transparent at both ends.
-  function renderAvatar(c, img, team, size) {
+  function renderAvatar(c, img, team, size, opts) {
+    const { square = false, showText = true, showColors = true } = opts || {};
     const cx = size / 2;
     const cy = size / 2;
     const colors = team.colors;
@@ -316,10 +341,14 @@
     const fadeIn = 16 * D;
     const fadeOut = 13 * D;
 
-    // Avatar fills the whole circle; the band overlays its edge.
+    // Avatar fills the whole frame; the band overlays its edge.
     c.save();
     c.beginPath();
-    c.arc(cx, cy, R, 0, Math.PI * 2);
+    if (square) {
+      c.rect(0, 0, size, size);
+    } else {
+      c.arc(cx, cy, R, 0, Math.PI * 2);
+    }
     c.closePath();
     c.clip();
     c.drawImage(img, 0, 0, size, size);
@@ -338,16 +367,25 @@
     c.restore();
 
     // Country-color band along the lower-left arc, fading to transparent at the ends
-    drawColorRing(c, cx, cy, outerR, innerR, colors, startAngle, endAngle, fadeIn, fadeOut);
+    if (showColors) {
+      drawColorRing(c, cx, cy, outerR, innerR, colors, startAngle, endAngle, fadeIn, fadeOut);
+    }
 
-    // Subtle full hairline keeps the avatar defined on light backgrounds
+    // Subtle hairline keeps the avatar defined on light backgrounds
     c.strokeStyle = "rgba(0,0,0,0.18)";
     c.lineWidth = Math.max(size * 0.004, 1);
     c.beginPath();
-    c.arc(cx, cy, R - c.lineWidth / 2, 0, Math.PI * 2);
+    if (square) {
+      const inset = c.lineWidth / 2;
+      c.rect(inset, inset, size - c.lineWidth, size - c.lineWidth);
+    } else {
+      c.arc(cx, cy, R - c.lineWidth / 2, 0, Math.PI * 2);
+    }
     c.stroke();
 
-    drawCountryCode(c, cx, cy, R, team, size);
+    if (showText) {
+      drawCountryCode(c, cx, cy, R, team, size);
+    }
   }
 
   // Partial color band that hugs the lower-left perimeter and fades to transparent at

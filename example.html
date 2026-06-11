@@ -197,7 +197,8 @@
       });
     }
 
-    function renderAvatar(cvs, img, team) {
+    function renderAvatar(cvs, img, team, opts) {
+      const { square = false, showText = true, showColors = true } = opts || {};
       const size = cvs.width;
       const c = cvs.getContext("2d");
       const cx = size / 2;
@@ -219,7 +220,11 @@
 
       c.save();
       c.beginPath();
-      c.arc(cx, cy, R, 0, Math.PI * 2);
+      if (square) {
+        c.rect(0, 0, size, size);
+      } else {
+        c.arc(cx, cy, R, 0, Math.PI * 2);
+      }
       c.closePath();
       c.clip();
       c.drawImage(img, 0, 0, size, size);
@@ -235,15 +240,24 @@
       c.fillRect(0, cy, size, size - cy);
       c.restore();
 
-      drawColorRing(c, cx, cy, outerR, innerR, colors, startAngle, endAngle, fadeIn, fadeOut);
+      if (showColors) {
+        drawColorRing(c, cx, cy, outerR, innerR, colors, startAngle, endAngle, fadeIn, fadeOut);
+      }
 
       c.strokeStyle = "rgba(0,0,0,0.18)";
       c.lineWidth = Math.max(size * 0.004, 1);
       c.beginPath();
-      c.arc(cx, cy, R - c.lineWidth / 2, 0, Math.PI * 2);
+      if (square) {
+        const inset = c.lineWidth / 2;
+        c.rect(inset, inset, size - c.lineWidth, size - c.lineWidth);
+      } else {
+        c.arc(cx, cy, R - c.lineWidth / 2, 0, Math.PI * 2);
+      }
       c.stroke();
 
-      drawCountryCode(c, cx, cy, R, team, size);
+      if (showText) {
+        drawCountryCode(c, cx, cy, R, team, size);
+      }
     }
 
     async function getAvatars(count) {
