@@ -138,10 +138,24 @@
       }
     }
     if (source.platform === "github") {
-      const apiRes = await fetch(`https://api.github.com/users/${encodeURIComponent(source.user)}`);
-      if (!apiRes.ok) throw new Error("User not found");
-      const userData = await apiRes.json();
-      return loadImage(userData.avatar_url + "&s=512");
+      // Prefer the API so we can surface a precise "user not found" message, but
+      // fall back to GitHub's direct avatar endpoint when the API is unavailable
+      // (the unauthenticated 60-req/hour rate limit returns 403) so the avatar
+      // still loads instead of silently failing.
+      const directUrl = `https://avatars.githubusercontent.com/${encodeURIComponent(source.user)}?size=512`;
+      try {
+        const apiRes = await fetch(`https://api.github.com/users/${encodeURIComponent(source.user)}`);
+        if (apiRes.status === 404) throw new Error("User not found");
+        if (apiRes.ok) {
+          const userData = await apiRes.json();
+          return loadImage(userData.avatar_url + "&s=512");
+        }
+        // Non-OK, non-404 (e.g. 403 rate limit) — fall through to the direct endpoint.
+      } catch (err) {
+        if (err.message === "User not found") throw err;
+        // Network error reaching the API — fall through to the direct endpoint.
+      }
+      return loadImage(directUrl);
     }
     if (source.platform === "bluesky") {
       const res = await fetch(`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(source.user)}`);
@@ -726,47 +740,65 @@
   }
 
   // --- Example avatars from GitHub public events ---
+  // A small curated fallback so the grid still renders when the public events
+  // API is unavailable (the unauthenticated rate limit returns 403).
+  const FALLBACK_EXAMPLE_USERS = [
+    "octocat", "defunkt", "mojombo", "pjhyett", "torvalds",
+    "gaearon", "holman", "dannygreg", "leereilly",
+  ];
+
+  function addExampleCard(grid, avatarUrl) {
+    return loadImage(avatarUrl).then((img) => {
+      if (isDefaultAvatar(img)) return;
+      const team = TEAMS[Math.floor(Math.random() * TEAMS.length)];
+
+      const card = document.createElement("div");
+      card.className = "example-card";
+
+      const miniCanvas = document.createElement("canvas");
+      miniCanvas.width = 200;
+      miniCanvas.height = 200;
+      card.appendChild(miniCanvas);
+
+      grid.appendChild(card);
+      drawMiniAvatar(miniCanvas, img, team);
+    }).catch(() => {
+      // skip failed loads
+    });
+  }
+
   async function loadExamples() {
     const grid = document.getElementById("examples-grid");
+
+    // Collect candidate avatar URLs from the public events feed when available.
+    let avatarUrls = [];
     try {
       const res = await fetch("https://api.github.com/events");
-      if (!res.ok) return;
-      const events = await res.json();
-
-      // Extract unique usernames with avatar URLs
-      const seen = new Set();
-      const users = [];
-      for (const event of events) {
-        const login = event.actor?.login;
-        const avatar = event.actor?.avatar_url;
-        if (login && avatar && !seen.has(login)) {
-          seen.add(login);
-          users.push({ login, avatar });
-        }
-      }
-
-      for (const user of users) {
-        const team = TEAMS[Math.floor(Math.random() * TEAMS.length)];
-        try {
-          const img = await loadImage(user.avatar + "&s=200");
-          if (isDefaultAvatar(img)) continue;
-
-          const card = document.createElement("div");
-          card.className = "example-card";
-
-          const miniCanvas = document.createElement("canvas");
-          miniCanvas.width = 200;
-          miniCanvas.height = 200;
-          card.appendChild(miniCanvas);
-
-          grid.appendChild(card);
-          drawMiniAvatar(miniCanvas, img, team);
-        } catch {
-          // skip failed loads
+      if (res.ok) {
+        const events = await res.json();
+        const seen = new Set();
+        for (const event of events) {
+          const login = event.actor?.login;
+          const avatar = event.actor?.avatar_url;
+          if (login && avatar && !seen.has(login)) {
+            seen.add(login);
+            avatarUrls.push(avatar + "&s=200");
+          }
         }
       }
     } catch {
-      // silently fail — examples are non-critical
+      // network error — fall back below
+    }
+
+    // Fall back to a curated list so the section never renders empty.
+    if (avatarUrls.length === 0) {
+      avatarUrls = FALLBACK_EXAMPLE_USERS.map(
+        (login) => `https://avatars.githubusercontent.com/${login}?size=200`
+      );
+    }
+
+    for (const avatarUrl of avatarUrls) {
+      await addExampleCard(grid, avatarUrl);
     }
   }
 
@@ -792,17 +824,15 @@
 
   loadExamples();
 
-  // Render PR promo avatars with flag rings
+  // Render PR promo avatars with flag rings. Load straight from GitHub's avatar
+  // endpoint (no API call) so these aren't subject to the unauthenticated rate limit.
   document.querySelectorAll(".pr-promo .pr-avatar[data-user]").forEach(async (cvs) => {
     const user = cvs.dataset.user;
     const teamCode = cvs.dataset.team;
     const team = TEAMS.find(t => t.code === teamCode);
     if (!team) return;
     try {
-      const res = await fetch(`https://api.github.com/users/${user}`);
-      if (!res.ok) return;
-      const data = await res.json();
-      const img = await loadImage(data.avatar_url + "&s=200");
+      const img = await loadImage(`https://avatars.githubusercontent.com/${user}?size=200`);
       drawMiniAvatar(cvs, img, team);
     } catch { /* skip */ }
   });
