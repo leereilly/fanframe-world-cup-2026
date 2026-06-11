@@ -13,6 +13,12 @@
   const canvas = document.getElementById("canvas");
   const downloadBtn = document.getElementById("download");
   const ctx = canvas.getContext("2d");
+  const fileInput = document.getElementById("file-input");
+  const dropZone = document.getElementById("drop-zone");
+  const uploadLink = document.getElementById("upload-link");
+
+  // Holds a locally uploaded/dropped image; takes precedence over the text input.
+  let uploadedImage = null;
 
   // Populate team dropdown
   TEAMS.forEach((team) => {
@@ -22,9 +28,10 @@
     teamSelect.appendChild(opt);
   });
 
-  // Allow URLs and usernames — no character restriction
+  // Allow URLs and usernames — no character restriction.
+  // Typing overrides any previously uploaded/dropped image.
   usernameInput.addEventListener("input", () => {
-    // No filtering — accept URLs and usernames
+    uploadedImage = null;
   });
 
   // Handle Enter key
@@ -156,26 +163,110 @@
     }
   }
 
+  // --- Local image upload + drag & drop (no server; everything stays in-browser) ---
+  function loadImageFromFile(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("Could not read that image file."));
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error("That file isn't a valid image."));
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function handleFile(file) {
+    clearError();
+
+    if (!file || !file.type.startsWith("image/")) {
+      return showError("Please choose an image file (PNG, JPG, GIF, or WebP).");
+    }
+
+    let img;
+    try {
+      img = await loadImageFromFile(file);
+    } catch (err) {
+      return showError(err.message || "Could not read that image file.");
+    }
+
+    if (img.naturalWidth !== img.naturalHeight) {
+      return showError(
+        `Image must be square. That one is ${img.naturalWidth}×${img.naturalHeight} — crop it to a 1:1 ratio and try again.`
+      );
+    }
+
+    uploadedImage = img;
+    usernameInput.value = file.name.replace(/\.[^.\\/]+$/, "");
+
+    // If a team is already selected, render right away.
+    if (teamSelect.value) generateBtn.click();
+  }
+
+  uploadLink.addEventListener("click", () => fileInput.click());
+
+  fileInput.addEventListener("change", () => {
+    const file = fileInput.files && fileInput.files[0];
+    if (file) handleFile(file);
+    fileInput.value = ""; // allow re-selecting the same file
+  });
+
+  ["dragenter", "dragover"].forEach((evt) => {
+    dropZone.addEventListener(evt, (e) => {
+      if (e.dataTransfer && Array.from(e.dataTransfer.types).includes("Files")) {
+        e.preventDefault();
+        dropZone.classList.add("drag-over");
+      }
+    });
+  });
+
+  ["dragleave", "dragend", "drop"].forEach((evt) => {
+    dropZone.addEventListener(evt, () => dropZone.classList.remove("drag-over"));
+  });
+
+  dropZone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  });
+
+  // Stop the browser from opening an image dropped anywhere outside the zone.
+  ["dragover", "drop"].forEach((evt) => {
+    window.addEventListener(evt, (e) => e.preventDefault());
+  });
+
   generateBtn.addEventListener("click", async () => {
-    const input = usernameInput.value.trim();
     const teamCode = teamSelect.value;
 
     clearError();
 
-    if (!input) return showError("Please enter a username or profile URL.");
     if (!teamCode) return showError("Please select a team.");
 
     const team = TEAMS.find((t) => t.code === teamCode);
     if (!team) return showError("Team not found.");
 
-    const source = detectAvatarSource(input);
-    if (!source) return showError("Could not detect a profile from the input.");
-
     generateBtn.disabled = true;
     generateBtn.textContent = "Loading…";
 
     try {
-      const img = await fetchAvatarImage(source);
+      let img;
+      if (uploadedImage) {
+        img = uploadedImage;
+      } else {
+        const input = usernameInput.value.trim();
+        if (!input) {
+          showError("Please enter a username or profile URL, or drop an image.");
+          return;
+        }
+        const source = detectAvatarSource(input);
+        if (!source) {
+          showError("Could not detect a profile from the input.");
+          return;
+        }
+        img = await fetchAvatarImage(source);
+      }
       drawAvatar(img, team);
       previewSection.classList.remove("hidden");
       document.getElementById("examples-section").style.display = "none";
@@ -204,8 +295,8 @@
     renderAvatar(ctx, img, team, SIZE);
   }
 
-  // Unified renderer: circular avatar + country-color border ring + styled code.
-  // Built for GitHub's circular crop — the ring sits flush to the circle edge.
+  // Unified renderer: circular avatar + LinkedIn #OPENTOWORK-style color band + styled code.
+  // The band hugs the lower-left perimeter and fades to transparent at both ends.
   function renderAvatar(c, img, team, size) {
     const cx = size / 2;
     const cy = size / 2;
@@ -213,20 +304,27 @@
 
     c.clearRect(0, 0, size, size);
 
-    const ringOuter = size / 2;
-    const ringWidth = Math.max(size * 0.08, 6);
-    const ringInner = ringOuter - ringWidth;
-    const sep = Math.max(size * 0.0075, 1);
+    const R = size / 2;
+    const bandWidth = Math.max(size * 0.13, 8);
+    const outerR = R;
+    const innerR = R - bandWidth;
 
-    // Avatar clipped to a circle, with a vignette + bottom scrim for depth and legibility
+    // Band placement mirrors LinkedIn's #OPENTOWORK coverage: lower-left arc, ~165°.
+    const D = Math.PI / 180;
+    const startAngle = 38 * D;
+    const endAngle = 203 * D;
+    const fadeIn = 16 * D;
+    const fadeOut = 13 * D;
+
+    // Avatar fills the whole circle; the band overlays its edge.
     c.save();
     c.beginPath();
-    c.arc(cx, cy, ringInner, 0, Math.PI * 2);
+    c.arc(cx, cy, R, 0, Math.PI * 2);
     c.closePath();
     c.clip();
     c.drawImage(img, 0, 0, size, size);
 
-    const vignette = c.createRadialGradient(cx, cy, ringInner * 0.62, cx, cy, ringInner);
+    const vignette = c.createRadialGradient(cx, cy, R * 0.62, cx, cy, R);
     vignette.addColorStop(0, "rgba(0,0,0,0)");
     vignette.addColorStop(1, "rgba(0,0,0,0.22)");
     c.fillStyle = vignette;
@@ -239,71 +337,86 @@
     c.fillRect(0, cy, size, size - cy);
     c.restore();
 
-    // Country-color border ring
-    drawColorRing(c, cx, cy, ringOuter, ringInner, colors);
+    // Country-color band along the lower-left arc, fading to transparent at the ends
+    drawColorRing(c, cx, cy, outerR, innerR, colors, startAngle, endAngle, fadeIn, fadeOut);
 
-    // Crisp white separator between avatar and ring
-    c.strokeStyle = "rgba(255,255,255,0.95)";
-    c.lineWidth = sep * 1.8;
+    // Subtle full hairline keeps the avatar defined on light backgrounds
+    c.strokeStyle = "rgba(0,0,0,0.18)";
+    c.lineWidth = Math.max(size * 0.004, 1);
     c.beginPath();
-    c.arc(cx, cy, ringInner, 0, Math.PI * 2);
+    c.arc(cx, cy, R - c.lineWidth / 2, 0, Math.PI * 2);
     c.stroke();
 
-    // Thin dark outer rim — keeps the border defined on any background
-    c.strokeStyle = "rgba(0,0,0,0.32)";
-    c.lineWidth = sep * 1.4;
-    c.beginPath();
-    c.arc(cx, cy, ringOuter - sep * 0.7, 0, Math.PI * 2);
-    c.stroke();
-
-    drawCountryCode(c, cx, cy, ringInner, team, size);
+    drawCountryCode(c, cx, cy, R, team, size);
   }
 
-  function drawColorRing(c, cx, cy, outerR, innerR, colors) {
+  // Partial color band that hugs the lower-left perimeter and fades to transparent at
+  // both ends — modeled on LinkedIn's #OPENTOWORK ribbon. Team colors split into equal
+  // arcs across the solid core so the flag identity is preserved.
+  function drawColorRing(c, cx, cy, outerR, innerR, colors, startAngle, endAngle, fadeIn, fadeOut) {
     const count = colors.length;
+    const span = endAngle - startAngle;
+    const steps = Math.max(72, Math.ceil(span / (Math.PI / 180)));
+    const overlap = (span / steps) * 0.6;
 
-    if (count === 1) {
-      // Solid ring
-      c.beginPath();
-      c.arc(cx, cy, outerR, 0, Math.PI * 2);
-      c.arc(cx, cy, innerR, 0, Math.PI * 2, true);
-      c.fillStyle = colors[0];
-      c.fill();
-      return;
-    }
+    for (let i = 0; i < steps; i++) {
+      const a0 = startAngle + span * (i / steps);
+      const a1 = startAngle + span * ((i + 1) / steps) + overlap;
+      const mid = (a0 + a1) / 2;
 
-    // Segmented ring — equal segments starting from top
-    const segmentAngle = (Math.PI * 2) / count;
-    colors.forEach((color, i) => {
-      const startAngle = segmentAngle * i - Math.PI / 2;
-      const endAngle = segmentAngle * (i + 1) - Math.PI / 2;
+      const t = (mid - startAngle) / span;
+      const ci = Math.min(count - 1, Math.max(0, Math.floor(t * count)));
+
+      const dStart = mid - startAngle;
+      const dEnd = endAngle - mid;
+      let alpha = 1;
+      if (dStart < fadeIn) alpha = Math.min(alpha, dStart / fadeIn);
+      if (dEnd < fadeOut) alpha = Math.min(alpha, dEnd / fadeOut);
+      alpha = Math.max(0, Math.min(1, alpha));
+      if (alpha <= 0.01) continue;
+
+      c.globalAlpha = alpha;
       c.beginPath();
-      c.arc(cx, cy, outerR, startAngle, endAngle);
-      c.arc(cx, cy, innerR, endAngle, startAngle, true);
+      c.arc(cx, cy, outerR, a0, a1);
+      c.arc(cx, cy, innerR, a1, a0, true);
       c.closePath();
-      c.fillStyle = color;
+      c.fillStyle = colors[ci];
       c.fill();
-    });
 
-    // Subtle dividers between segments for crispness
-    c.strokeStyle = "rgba(255,255,255,0.22)";
-    c.lineWidth = Math.max((outerR - innerR) * 0.04, 1);
-    for (let i = 0; i < count; i++) {
-      const angle = segmentAngle * i - Math.PI / 2;
-      c.beginPath();
-      c.moveTo(cx + innerR * Math.cos(angle), cy + innerR * Math.sin(angle));
-      c.lineTo(cx + outerR * Math.cos(angle), cy + outerR * Math.sin(angle));
-      c.stroke();
+      // Glossy sheen: shade the inner edge (separates band from photo) and lift the outer half
+      const gloss = c.createRadialGradient(cx, cy, innerR, cx, cy, outerR);
+      gloss.addColorStop(0, "rgba(0,0,0,0.22)");
+      gloss.addColorStop(0.4, "rgba(255,255,255,0.04)");
+      gloss.addColorStop(0.78, "rgba(255,255,255,0.16)");
+      gloss.addColorStop(1, "rgba(255,255,255,0.03)");
+      c.fillStyle = gloss;
+      c.fill();
+    }
+    c.globalAlpha = 1;
+
+    // Subtle dividers between color segments, only within the solid core
+    if (count > 1) {
+      c.strokeStyle = "rgba(255,255,255,0.25)";
+      c.lineWidth = Math.max((outerR - innerR) * 0.03, 1);
+      for (let i = 1; i < count; i++) {
+        const angle = startAngle + span * (i / count);
+        if (angle - startAngle > fadeIn && endAngle - angle > fadeOut) {
+          c.beginPath();
+          c.moveTo(cx + innerR * Math.cos(angle), cy + innerR * Math.sin(angle));
+          c.lineTo(cx + outerR * Math.cos(angle), cy + outerR * Math.sin(angle));
+          c.stroke();
+        }
+      }
     }
   }
 
   // Country code styled from the flag: tricolor flags get one color per letter,
-  // others use the most vivid flag color. Adaptive outline keeps it readable on any avatar.
-  function drawCountryCode(c, cx, cy, innerR, team, size) {
+  // others use the most vivid flag color. Large size + adaptive outline keep it readable.
+  function drawCountryCode(c, cx, cy, baseR, team, size) {
     const colors = team.colors;
     const code = team.code;
-    const fontSize = Math.max(Math.round(innerR * 0.32), 12);
-    const textY = cy + innerR * 0.55;
+    const fontSize = Math.max(Math.round(baseR * 0.46), 16);
+    const textY = cy + baseR * 0.5;
 
     c.font = `${fontSize}px 'Tiny5', monospace`;
     c.textBaseline = "middle";
@@ -324,17 +437,17 @@
 
       // Soft glow for separation from the avatar
       c.save();
-      c.shadowColor = "rgba(0,0,0,0.55)";
-      c.shadowBlur = Math.max(size * 0.022, 4);
-      c.shadowOffsetY = Math.max(size * 0.005, 1);
+      c.shadowColor = "rgba(0,0,0,0.7)";
+      c.shadowBlur = Math.max(size * 0.03, 5);
+      c.shadowOffsetY = Math.max(size * 0.006, 1);
       c.fillStyle = fill;
       c.fillText(letter, x, textY);
       c.restore();
 
       // Outline — light on dark fills, dark on light fills
       c.lineJoin = "round";
-      c.lineWidth = Math.max(fontSize * 0.16, 2);
-      c.strokeStyle = luminance(fill) > 0.5 ? "rgba(0,0,0,0.9)" : "rgba(255,255,255,0.92)";
+      c.lineWidth = Math.max(fontSize * 0.18, 3);
+      c.strokeStyle = luminance(fill) > 0.5 ? "rgba(0,0,0,0.92)" : "rgba(255,255,255,0.95)";
       c.strokeText(letter, x, textY);
 
       c.fillStyle = fill;
@@ -386,12 +499,59 @@
     });
   }
 
+  // Synthesize a referee's whistle (two short trilled toots) via Web Audio — no asset needed.
+  let whistleCtx = null;
+  function blowWhistle() {
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      whistleCtx = whistleCtx || new AC();
+      if (whistleCtx.state === "suspended") whistleCtx.resume();
+
+      const now = whistleCtx.currentTime;
+      const master = whistleCtx.createGain();
+      master.connect(whistleCtx.destination);
+
+      const osc = whistleCtx.createOscillator();
+      osc.type = "triangle";
+      osc.frequency.value = 3300;
+
+      // The "pea" rattle — a fast frequency wobble.
+      const lfo = whistleCtx.createOscillator();
+      lfo.frequency.value = 28;
+      const lfoGain = whistleCtx.createGain();
+      lfoGain.gain.value = 180;
+      lfo.connect(lfoGain).connect(osc.frequency);
+      osc.connect(master);
+
+      const g = master.gain;
+      g.setValueAtTime(0.0001, now);
+      g.exponentialRampToValueAtTime(0.22, now + 0.02);
+      g.exponentialRampToValueAtTime(0.1, now + 0.18);
+      g.exponentialRampToValueAtTime(0.22, now + 0.23);
+      g.exponentialRampToValueAtTime(0.0001, now + 0.5);
+
+      osc.start(now);
+      lfo.start(now);
+      osc.stop(now + 0.52);
+      lfo.stop(now + 0.52);
+    } catch {
+      // Audio is a nice-to-have; never let it block the error message.
+    }
+  }
+
   function showError(msg) {
     clearError();
     const el = document.createElement("p");
     el.className = "error-msg";
-    el.textContent = msg;
+    el.innerHTML =
+      '<svg class="whistle-icon" viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true">' +
+      '<path d="M13 4h2v4h-2z"/>' +
+      '<path fill-rule="evenodd" clip-rule="evenodd" d="M7 8h14a1.5 1.5 0 0 1 1.5 1.5V10a1 1 0 0 1-1 1H14l-1.2 3.2A5.5 5.5 0 1 1 7 8zm.5 2.5a2 2 0 1 0 .001 0z"/>' +
+      "</svg>";
+    el.appendChild(document.createTextNode(`VAR check complete: ${msg}`));
     document.querySelector(".controls").appendChild(el);
+    blowWhistle();
   }
 
   function clearError() {

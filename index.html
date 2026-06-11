@@ -39,9 +39,11 @@
     <div class="controls">
       <div class="input-group">
         <label for="username">GitHub Username or Social Profile / Image URL</label>
-        <div class="input-row">
+        <div class="input-row" id="drop-zone">
           <input type="text" id="username" placeholder="username or https://…" autocomplete="off" spellcheck="false">
         </div>
+        <input type="file" id="file-input" accept="image/*" hidden>
+        <p class="input-hint">…or drag &amp; drop a square image here, or <button type="button" id="upload-link" class="upload-link">browse to upload</button>.</p>
       </div>
 
       <div class="input-group">
@@ -67,7 +69,7 @@
     <section class="how-it-works">
       <h2>How It Works</h2>
       <ol>
-        <li>Enter your GitHub username or paste any profile image URL</li>
+        <li>Enter your GitHub username, paste any profile image URL, or drag &amp; drop / upload a square image</li>
         <li>Pick the country you're supporting</li>
         <li>Download your new avatar and update your profiles</li>
       </ol>

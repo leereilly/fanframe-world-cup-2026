@@ -144,6 +144,43 @@ header h1 {
   border-radius: 8px;
 }
 
+.input-row.drag-over {
+  outline: 2px dashed #ffd600;
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+
+.input-row.drag-over input {
+  border-color: #ffd600;
+  background: rgba(255, 214, 0, 0.1);
+}
+
+/* Avoid dragleave flicker when hovering over child elements */
+.input-row.drag-over * {
+  pointer-events: none;
+}
+
+.input-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 0.15rem;
+}
+
+.upload-link {
+  width: auto;
+  padding: 0;
+  background: none;
+  border: none;
+  color: #ffd600;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.upload-link:hover {
+  color: #ffea00;
+}
+
 input, select {
   width: 100%;
   padding: 0.75rem 1rem;
@@ -241,6 +278,11 @@ canvas {
   font-size: 0.85rem;
   text-align: center;
   margin-top: 0.5rem;
+}
+
+.whistle-icon {
+  vertical-align: -2px;
+  margin-right: 0.35rem;
 }
 
 .examples-section {
