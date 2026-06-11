@@ -5,10 +5,6 @@
   await document.fonts.load("16px 'Tiny5'");
 
   const SIZE = 600;
-  const OUTER_MARGIN = 12;        // safe margin so glow isn't cropped
-  const RING_WIDTH = 18;          // slim color ring
-  const WHITE_STROKE = 4;         // thin white outer stroke
-  const INNER_SHADOW_WIDTH = 6;   // subtle shadow between ring and avatar
 
   const teamSelect = document.getElementById("team");
   const usernameInput = document.getElementById("username");
@@ -205,17 +201,62 @@
   });
 
   function drawAvatar(img, team) {
-    const cx = SIZE / 2;
-    const cy = SIZE / 2;
-    const avatarR = SIZE / 2;
+    renderAvatar(ctx, img, team, SIZE);
+  }
 
-    ctx.clearRect(0, 0, SIZE, SIZE);
+  // Unified renderer: circular avatar + country-color border ring + styled code.
+  // Built for GitHub's circular crop — the ring sits flush to the circle edge.
+  function renderAvatar(c, img, team, size) {
+    const cx = size / 2;
+    const cy = size / 2;
+    const colors = team.colors;
 
-    // --- Avatar image (square, full bleed) ---
-    ctx.drawImage(img, 0, 0, SIZE, SIZE);
+    c.clearRect(0, 0, size, size);
 
-    // --- Ribbon banner at bottom ---
-    drawRibbon(ctx, cx, cy, avatarR, team, SIZE);
+    const ringOuter = size / 2;
+    const ringWidth = Math.max(size * 0.08, 6);
+    const ringInner = ringOuter - ringWidth;
+    const sep = Math.max(size * 0.0075, 1);
+
+    // Avatar clipped to a circle, with a vignette + bottom scrim for depth and legibility
+    c.save();
+    c.beginPath();
+    c.arc(cx, cy, ringInner, 0, Math.PI * 2);
+    c.closePath();
+    c.clip();
+    c.drawImage(img, 0, 0, size, size);
+
+    const vignette = c.createRadialGradient(cx, cy, ringInner * 0.62, cx, cy, ringInner);
+    vignette.addColorStop(0, "rgba(0,0,0,0)");
+    vignette.addColorStop(1, "rgba(0,0,0,0.22)");
+    c.fillStyle = vignette;
+    c.fillRect(0, 0, size, size);
+
+    const scrim = c.createLinearGradient(0, cy, 0, size);
+    scrim.addColorStop(0, "rgba(0,0,0,0)");
+    scrim.addColorStop(1, "rgba(0,0,0,0.5)");
+    c.fillStyle = scrim;
+    c.fillRect(0, cy, size, size - cy);
+    c.restore();
+
+    // Country-color border ring
+    drawColorRing(c, cx, cy, ringOuter, ringInner, colors);
+
+    // Crisp white separator between avatar and ring
+    c.strokeStyle = "rgba(255,255,255,0.95)";
+    c.lineWidth = sep * 1.8;
+    c.beginPath();
+    c.arc(cx, cy, ringInner, 0, Math.PI * 2);
+    c.stroke();
+
+    // Thin dark outer rim — keeps the border defined on any background
+    c.strokeStyle = "rgba(0,0,0,0.32)";
+    c.lineWidth = sep * 1.4;
+    c.beginPath();
+    c.arc(cx, cy, ringOuter - sep * 0.7, 0, Math.PI * 2);
+    c.stroke();
+
+    drawCountryCode(c, cx, cy, ringInner, team, size);
   }
 
   function drawColorRing(c, cx, cy, outerR, innerR, colors) {
@@ -244,100 +285,63 @@
       c.fill();
     });
 
-    // Thin divider lines between segments for crispness
-    if (count > 1) {
-      c.strokeStyle = "rgba(255,255,255,0.15)";
-      c.lineWidth = 1;
-      for (let i = 0; i < count; i++) {
-        const angle = segmentAngle * i - Math.PI / 2;
-        c.beginPath();
-        c.moveTo(cx + innerR * Math.cos(angle), cy + innerR * Math.sin(angle));
-        c.lineTo(cx + outerR * Math.cos(angle), cy + outerR * Math.sin(angle));
-        c.stroke();
-      }
+    // Subtle dividers between segments for crispness
+    c.strokeStyle = "rgba(255,255,255,0.22)";
+    c.lineWidth = Math.max((outerR - innerR) * 0.04, 1);
+    for (let i = 0; i < count; i++) {
+      const angle = segmentAngle * i - Math.PI / 2;
+      c.beginPath();
+      c.moveTo(cx + innerR * Math.cos(angle), cy + innerR * Math.sin(angle));
+      c.lineTo(cx + outerR * Math.cos(angle), cy + outerR * Math.sin(angle));
+      c.stroke();
     }
   }
 
-  function drawRibbon(c, cx, cy, outerR, team, size) {
-    const scale = size / SIZE;
+  // Country code styled from the flag: tricolor flags get one color per letter,
+  // others use the most vivid flag color. Adaptive outline keeps it readable on any avatar.
+  function drawCountryCode(c, cx, cy, innerR, team, size) {
     const colors = team.colors;
+    const code = team.code;
+    const fontSize = Math.max(Math.round(innerR * 0.32), 12);
+    const textY = cy + innerR * 0.55;
 
-    // Compute text position first, then size ribbon to cover it
-    const baseRibbonH = size * 0.28;
-    const fontSize = Math.max(Math.round(baseRibbonH * 1.0), 10);
-    const textY = size - baseRibbonH + baseRibbonH * 0.55 - 20;
-    const padding = Math.max(16 * scale, 4);
-    const ribbonY = textY - fontSize / 2 - padding;
-    const ribbonH = size - ribbonY;
-
-    // Filter out white from gradient for teams with 3+ colors
-    let gradColors = colors;
-    if (colors.length > 2) {
-      const filtered = colors.filter(c => c.toUpperCase() !== "#FFFFFF" && c.toUpperCase() !== "#FFF");
-      if (filtered.length >= 2) gradColors = filtered;
-    }
-
-    // Country code text — Tiny5
     c.font = `${fontSize}px 'Tiny5', monospace`;
-    c.textAlign = "center";
     c.textBaseline = "middle";
-    c.letterSpacing = Math.max(Math.round(4 * scale), 1) + "px";
-
-    // White drop shadow — soft glow behind text
-    c.save();
-    c.shadowColor = "rgba(255,255,255,0.8)";
-    c.shadowBlur = 20;
-    c.fillStyle = "rgba(255,255,255,0.6)";
-    for (let i = 0; i < 5; i++) {
-      c.fillText(team.code, cx, textY);
-    }
-    c.restore();
-
-    // Black text layer — 2px up and 2px right
-    c.fillStyle = "#000000";
-    c.fillText(team.code, cx + 2, textY - 2);
-
-    // Black text layer — 2px down and 2px left
-    c.fillStyle = "#000000";
-    c.fillText(team.code, cx - 2, textY + 2);
-
-    // Country color text layer — centered on top
-    // If 3 colors, assign one per letter; otherwise use the main color
-    if (colors.length >= 3 && team.code.length === 3) {
-      const letters = team.code.split("");
-      const totalWidth = c.measureText(team.code).width;
-      let curX = cx - totalWidth / 2;
-      c.textAlign = "left";
-      letters.forEach((letter, i) => {
-        c.fillStyle = lightenIfDark(colors[i]);
-        const lw = c.measureText(letter).width;
-        c.fillText(letter, curX, textY);
-        curX += lw;
-      });
-      c.textAlign = "center";
-    } else {
-      c.fillStyle = lightenIfDark(colors[0]);
-      c.fillText(team.code, cx, textY);
-    }
+    c.textAlign = "left";
     c.letterSpacing = "0px";
-  }
 
-  function getBadgeBg(colors) {
-    // Pick the darkest color for better badge appearance
-    let darkest = colors[0];
-    let minLum = luminance(darkest);
-    for (let i = 1; i < colors.length; i++) {
-      const lum = luminance(colors[i]);
-      if (lum < minLum) {
-        minLum = lum;
-        darkest = colors[i];
-      }
-    }
-    // If darkest is too close to black, use the first color instead
-    if (minLum < 0.02 && colors.length > 1) {
-      return colors.find(c => luminance(c) > 0.05) || darkest;
-    }
-    return darkest;
+    const letters = code.split("");
+    const widths = letters.map((l) => c.measureText(l).width);
+    const gap = Math.max(fontSize * 0.1, 2);
+    const totalWidth = widths.reduce((a, b) => a + b, 0) + gap * (letters.length - 1);
+    let x = cx - totalWidth / 2;
+
+    const perLetter = colors.length >= 3 && letters.length === 3;
+    const single = perLetter ? null : pickVividColor(colors);
+
+    letters.forEach((letter, i) => {
+      const fill = perLetter ? colors[i] : single;
+
+      // Soft glow for separation from the avatar
+      c.save();
+      c.shadowColor = "rgba(0,0,0,0.55)";
+      c.shadowBlur = Math.max(size * 0.022, 4);
+      c.shadowOffsetY = Math.max(size * 0.005, 1);
+      c.fillStyle = fill;
+      c.fillText(letter, x, textY);
+      c.restore();
+
+      // Outline — light on dark fills, dark on light fills
+      c.lineJoin = "round";
+      c.lineWidth = Math.max(fontSize * 0.16, 2);
+      c.strokeStyle = luminance(fill) > 0.5 ? "rgba(0,0,0,0.9)" : "rgba(255,255,255,0.92)";
+      c.strokeText(letter, x, textY);
+
+      c.fillStyle = fill;
+      c.fillText(letter, x, textY);
+
+      x += widths[i] + gap;
+    });
   }
 
   function luminance(hex) {
@@ -347,21 +351,29 @@
     return 0.2126 * r + 0.7152 * g + 0.0722 * b;
   }
 
-  function lightenIfDark(hex) {
-    let r = parseInt(hex.slice(1, 3), 16);
-    let g = parseInt(hex.slice(3, 5), 16);
-    let b = parseInt(hex.slice(5, 7), 16);
-    if (luminance(hex) < 0.25) {
-      const amt = 60;
-      r = Math.min(255, r + amt);
-      g = Math.min(255, g + amt);
-      b = Math.min(255, b + amt);
-    }
-    return `#${r.toString(16).padStart(2,"0")}${g.toString(16).padStart(2,"0")}${b.toString(16).padStart(2,"0")}`;
+  function saturation(hex) {
+    const r = parseInt(hex.slice(1, 3), 16) / 255;
+    const g = parseInt(hex.slice(3, 5), 16) / 255;
+    const b = parseInt(hex.slice(5, 7), 16) / 255;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    return max === 0 ? 0 : (max - min) / max;
   }
 
-  function getContrastText(bgHex) {
-    return luminance(bgHex) > 0.4 ? "#000000" : "#FFFFFF";
+  // Most vivid flag color: prefer saturated, mid-luminance, non-white tones
+  function pickVividColor(colors) {
+    const pool = colors.filter((h) => luminance(h) < 0.82);
+    const list = pool.length ? pool : colors;
+    let best = list[0];
+    let bestScore = -Infinity;
+    for (const h of list) {
+      const score = saturation(h) - Math.abs(luminance(h) - 0.5) * 0.4;
+      if (score > bestScore) {
+        bestScore = score;
+        best = h;
+      }
+    }
+    return best;
   }
 
   async function loadImage(url) {
@@ -449,18 +461,7 @@
   }
 
   function drawMiniAvatar(cvs, img, team) {
-    const size = cvs.width;
-    const c = cvs.getContext("2d");
-    const cx = size / 2;
-    const cy = size / 2;
-
-    c.clearRect(0, 0, size, size);
-
-    // Avatar (square, full bleed)
-    c.drawImage(img, 0, 0, size, size);
-
-    // Ribbon banner at bottom
-    drawRibbon(c, cx, cy, size / 2, team, size);
+    renderAvatar(cvs.getContext("2d"), img, team, cvs.width);
   }
 
   loadExamples();

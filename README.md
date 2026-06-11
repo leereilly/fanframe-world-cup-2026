@@ -2,7 +2,7 @@
 
 Generate a custom GitHub avatar with your favorite World Cup 2026 team's colors!
 
-Enter your GitHub username, pick a team, and download a PNG with a circular ribbon in your team's colors and a country code badge.
+Enter your GitHub username, pick a team, and download a PNG with a circular border in your team's colors and a country code.
 
 ## Features
 

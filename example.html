@@ -52,7 +52,7 @@
 </head>
 <body>
   <h1>⚽ Avatar Treatment Examples</h1>
-  <p class="subtitle">Gradient color ribbon + country code — previewed at real-world sizes</p>
+  <p class="subtitle">Circular country-color border + country code — previewed at real-world sizes</p>
 
   <h2>📐 Size Comparison (one avatar at different sizes)</h2>
   <div id="sizes-row" class="sizes-row"></div>
@@ -75,8 +75,6 @@
     // Wait for Tiny5 font to load before any canvas drawing
     await document.fonts.load("16px 'Tiny5'");
 
-    const SIZE = 600;
-
     function loadImage(url) {
       return new Promise((resolve, reject) => {
         const img = new Image();
@@ -94,82 +92,141 @@
       return 0.2126 * r + 0.7152 * g + 0.0722 * b;
     }
 
-    function drawRibbon(c, cx, cy, outerR, team, size) {
-      const scale = size / SIZE;
+    function saturation(hex) {
+      const r = parseInt(hex.slice(1, 3), 16) / 255;
+      const g = parseInt(hex.slice(3, 5), 16) / 255;
+      const b = parseInt(hex.slice(5, 7), 16) / 255;
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      return max === 0 ? 0 : (max - min) / max;
+    }
+
+    function pickVividColor(colors) {
+      const pool = colors.filter((h) => luminance(h) < 0.82);
+      const list = pool.length ? pool : colors;
+      let best = list[0];
+      let bestScore = -Infinity;
+      for (const h of list) {
+        const score = saturation(h) - Math.abs(luminance(h) - 0.5) * 0.4;
+        if (score > bestScore) { bestScore = score; best = h; }
+      }
+      return best;
+    }
+
+    function drawColorRing(c, cx, cy, outerR, innerR, colors) {
+      const count = colors.length;
+      if (count === 1) {
+        c.beginPath();
+        c.arc(cx, cy, outerR, 0, Math.PI * 2);
+        c.arc(cx, cy, innerR, 0, Math.PI * 2, true);
+        c.fillStyle = colors[0];
+        c.fill();
+        return;
+      }
+      const segmentAngle = (Math.PI * 2) / count;
+      colors.forEach((color, i) => {
+        const startAngle = segmentAngle * i - Math.PI / 2;
+        const endAngle = segmentAngle * (i + 1) - Math.PI / 2;
+        c.beginPath();
+        c.arc(cx, cy, outerR, startAngle, endAngle);
+        c.arc(cx, cy, innerR, endAngle, startAngle, true);
+        c.closePath();
+        c.fillStyle = color;
+        c.fill();
+      });
+      c.strokeStyle = "rgba(255,255,255,0.22)";
+      c.lineWidth = Math.max((outerR - innerR) * 0.04, 1);
+      for (let i = 0; i < count; i++) {
+        const angle = segmentAngle * i - Math.PI / 2;
+        c.beginPath();
+        c.moveTo(cx + innerR * Math.cos(angle), cy + innerR * Math.sin(angle));
+        c.lineTo(cx + outerR * Math.cos(angle), cy + outerR * Math.sin(angle));
+        c.stroke();
+      }
+    }
+
+    function drawCountryCode(c, cx, cy, innerR, team, size) {
       const colors = team.colors;
-
-      const baseRibbonH = size * 0.28;
-      const fontSize = Math.max(Math.round(baseRibbonH * 1.0), 10);
-      const textY = size - baseRibbonH + baseRibbonH * 0.55 - 20;
-      const padding = Math.max(16 * scale, 4);
-      const ribbonY = textY - fontSize / 2 - padding;
-      const ribbonH = size - ribbonY;
-
-      c.save();
-      c.shadowColor = "rgba(0,0,0,0.45)";
-      c.shadowBlur = Math.max(8 * scale, 3);
-      c.shadowOffsetY = Math.max(-2 * scale, -1);
-      c.fillStyle = colors[0];
-      c.fillRect(0, ribbonY, size, ribbonH);
-      c.restore();
-
-      let gradColors = colors;
-      if (colors.length > 2) {
-        const filtered = colors.filter(c => c.toUpperCase() !== "#FFFFFF" && c.toUpperCase() !== "#FFF");
-        if (filtered.length >= 2) gradColors = filtered;
-      }
-
-      const grad = c.createLinearGradient(0, ribbonY, size, ribbonY);
-      if (gradColors.length === 1) {
-        grad.addColorStop(0, gradColors[0]);
-        grad.addColorStop(1, gradColors[0]);
-      } else {
-        gradColors.forEach((color, i) => { grad.addColorStop(i / (gradColors.length - 1), color); });
-      }
-      c.fillStyle = grad;
-      c.fillRect(0, ribbonY, size, ribbonH);
-
-      c.strokeStyle = "rgba(255,255,255,0.6)";
-      c.lineWidth = Math.max(2 * scale, 1);
-      c.beginPath();
-      c.moveTo(0, ribbonY);
-      c.lineTo(size, ribbonY);
-      c.stroke();
-
-      const avgLum = gradColors.reduce((sum, col) => sum + luminance(col), 0) / gradColors.length;
-      const textColor = avgLum > 0.4 ? "#000000" : "#FFFFFF";
-      const outlineColor = avgLum > 0.4 ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.6)";
-
+      const code = team.code;
+      const fontSize = Math.max(Math.round(innerR * 0.32), 12);
+      const textY = cy + innerR * 0.55;
       c.font = `${fontSize}px 'Tiny5', monospace`;
-      c.textAlign = "center";
       c.textBaseline = "middle";
-      c.letterSpacing = Math.max(Math.round(4 * scale), 1) + "px";
-
-      c.save();
-      c.shadowColor = avgLum > 0.4 ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.7)";
-      c.shadowBlur = Math.max(4 * scale, 2);
-      c.shadowOffsetY = Math.max(2 * scale, 1);
-      c.fillStyle = textColor;
-      c.fillText(team.code, cx, textY);
-      c.restore();
-
-      c.strokeStyle = outlineColor;
-      c.lineWidth = Math.max(4 * scale, 1.5);
-      c.strokeText(team.code, cx, textY);
-
-      c.fillStyle = textColor;
-      c.fillText(team.code, cx, textY);
+      c.textAlign = "left";
       c.letterSpacing = "0px";
+      const letters = code.split("");
+      const widths = letters.map((l) => c.measureText(l).width);
+      const gap = Math.max(fontSize * 0.1, 2);
+      const totalWidth = widths.reduce((a, b) => a + b, 0) + gap * (letters.length - 1);
+      let x = cx - totalWidth / 2;
+      const perLetter = colors.length >= 3 && letters.length === 3;
+      const single = perLetter ? null : pickVividColor(colors);
+      letters.forEach((letter, i) => {
+        const fill = perLetter ? colors[i] : single;
+        c.save();
+        c.shadowColor = "rgba(0,0,0,0.55)";
+        c.shadowBlur = Math.max(size * 0.022, 4);
+        c.shadowOffsetY = Math.max(size * 0.005, 1);
+        c.fillStyle = fill;
+        c.fillText(letter, x, textY);
+        c.restore();
+        c.lineJoin = "round";
+        c.lineWidth = Math.max(fontSize * 0.16, 2);
+        c.strokeStyle = luminance(fill) > 0.5 ? "rgba(0,0,0,0.9)" : "rgba(255,255,255,0.92)";
+        c.strokeText(letter, x, textY);
+        c.fillStyle = fill;
+        c.fillText(letter, x, textY);
+        x += widths[i] + gap;
+      });
     }
 
     function renderAvatar(cvs, img, team) {
       const size = cvs.width;
       const c = cvs.getContext("2d");
-      const cx = size / 2, cy = size / 2;
+      const cx = size / 2;
+      const cy = size / 2;
+      const colors = team.colors;
 
       c.clearRect(0, 0, size, size);
+
+      const ringOuter = size / 2;
+      const ringWidth = Math.max(size * 0.08, 6);
+      const ringInner = ringOuter - ringWidth;
+      const sep = Math.max(size * 0.0075, 1);
+
+      c.save();
+      c.beginPath();
+      c.arc(cx, cy, ringInner, 0, Math.PI * 2);
+      c.closePath();
+      c.clip();
       c.drawImage(img, 0, 0, size, size);
-      drawRibbon(c, cx, cy, size / 2, team, size);
+      const vignette = c.createRadialGradient(cx, cy, ringInner * 0.62, cx, cy, ringInner);
+      vignette.addColorStop(0, "rgba(0,0,0,0)");
+      vignette.addColorStop(1, "rgba(0,0,0,0.22)");
+      c.fillStyle = vignette;
+      c.fillRect(0, 0, size, size);
+      const scrim = c.createLinearGradient(0, cy, 0, size);
+      scrim.addColorStop(0, "rgba(0,0,0,0)");
+      scrim.addColorStop(1, "rgba(0,0,0,0.5)");
+      c.fillStyle = scrim;
+      c.fillRect(0, cy, size, size - cy);
+      c.restore();
+
+      drawColorRing(c, cx, cy, ringOuter, ringInner, colors);
+
+      c.strokeStyle = "rgba(255,255,255,0.95)";
+      c.lineWidth = sep * 1.8;
+      c.beginPath();
+      c.arc(cx, cy, ringInner, 0, Math.PI * 2);
+      c.stroke();
+
+      c.strokeStyle = "rgba(0,0,0,0.32)";
+      c.lineWidth = sep * 1.4;
+      c.beginPath();
+      c.arc(cx, cy, ringOuter - sep * 0.7, 0, Math.PI * 2);
+      c.stroke();
+
+      drawCountryCode(c, cx, cy, ringInner, team, size);
     }
 
     async function getAvatars(count) {
