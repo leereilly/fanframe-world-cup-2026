@@ -4,6 +4,40 @@ Generate a custom GitHub avatar with your favorite World Cup 2026 team's colors!
 
 Enter your GitHub username, pick a team, and download a PNG with a team-colored ribbon along the lower edge and a country code.
 
+## Examples
+
+A few GitHub friends repping their teams — generated with FanFrame:
+
+<table>
+  <tr>
+    <td align="center" width="20%">
+      <img src="examples/leereilly-sco.png" width="140" alt="@leereilly with Scotland colors"><br>
+      <a href="https://github.com/leereilly">@leereilly</a><br>
+      <sub>🏴󠁧󠁢󠁳󠁣󠁴󠁿 Scotland</sub>
+    </td>
+    <td align="center" width="20%">
+      <img src="examples/cassidoo-usa.png" width="140" alt="@cassidoo with USA colors"><br>
+      <a href="https://github.com/cassidoo">@cassidoo</a><br>
+      <sub>🇺🇸 USA</sub>
+    </td>
+    <td align="center" width="20%">
+      <img src="examples/martinwoodward-eng.png" width="140" alt="@MartinWoodward with England colors"><br>
+      <a href="https://github.com/MartinWoodward">@MartinWoodward</a><br>
+      <sub>🏴󠁧󠁢󠁥󠁮󠁧󠁿 England</sub>
+    </td>
+    <td align="center" width="20%">
+      <img src="examples/abbycabs-can.png" width="140" alt="@abbycabs with Canada colors"><br>
+      <a href="https://github.com/abbycabs">@abbycabs</a><br>
+      <sub>🇨🇦 Canada</sub>
+    </td>
+    <td align="center" width="20%">
+      <img src="examples/chrisreddington-wal.png" width="140" alt="@ChrisReddington with Wales colors"><br>
+      <a href="https://github.com/ChrisReddington">@ChrisReddington</a><br>
+      <sub>🏴󠁧󠁢󠁷󠁬󠁳󠁿 Wales</sub>
+    </td>
+  </tr>
+</table>
+
 ## Features
 
 - 🏟️ All 48 World Cup 2026 qualified teams
