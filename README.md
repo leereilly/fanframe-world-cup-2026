@@ -1,5 +1,7 @@
 # ⚽ FanFrame — World Cup 2026 Avatar Generator
 
+![](og-image.png)
+
 Generate a custom GitHub avatar with your favorite World Cup 2026 team's colors!
 
 Enter your GitHub username, pick a team, and download a PNG with a team-colored ribbon along the lower edge and a country code.
